@@ -1,6 +1,6 @@
 import { LinkButton } from "./components/test/link";
 export const Auth = () => {
-  const title: string = "Spotify認証画面";
+  const title: string = "Spotify認証画面/ モーダルウィンドウにしたい";
 
   return (
     <div className="Auth">
