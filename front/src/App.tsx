@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
-import './App.css'
+// import './css/App.css'
+import { LinkButton } from "./components/test/link";
 
-function App() {
+
+export function App() {
   const [count, setCount] = useState(0)
 
   return (
@@ -21,6 +23,13 @@ function App() {
         <button onClick={() => setCount((count) => count + 1)}>
           count is {count}
         </button>
+        <LinkButton text="Home" link="/home" />
+        <LinkButton text="Search" link="/search" />
+        <LinkButton text="Result" link="/result" />
+        <LinkButton text="Favorite" link="/favorite" />
+        <LinkButton text="Recommend" link="/recommend" />
+        <LinkButton text="practice" link="/practice" />
+        <LinkButton text="Auth" link="/auth" />
         <p>
           Edit <code>src/App.tsx</code> and save to test HMR
         </p>
