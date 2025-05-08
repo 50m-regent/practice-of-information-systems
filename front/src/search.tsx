@@ -1,9 +1,11 @@
 import { LinkButton } from "./components/test/link";
+import { Navbar } from './components/Navbar';
 
 export const Search = () => {
     const title: string = "検索画面";
 
     return (
+        <>
         <div className="Search">
             <h1>{title}</h1>
             <LinkButton text="ホーム画面/Home" link="/home" />
@@ -15,5 +17,7 @@ export const Search = () => {
             <LinkButton text="検索画面/Search" link="/search" />
             <LinkButton text="お気に入り画面/Favorite" link="/favorite" />
         </div>
+        <Navbar />
+        </>
     );
 }
