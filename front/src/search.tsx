@@ -70,7 +70,7 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                     <div>
                         {musicList.map((music, index) => (
                             // 音楽表示用コンポーネントの作成
-                        <div key={index}>
+                        <div key={music.musicID}>
                         <MusicItemList
                             musicID={music.musicID}
                             title={music.title}
