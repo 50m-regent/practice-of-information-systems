@@ -10,9 +10,9 @@ type DysplayMusic ={
     artist : string;
     thumbnail : string;//画像のURL? 画像そのもの？
 }
-export const MusicItemList = (props: DysplayMusic) => {
-  return (//検索結果画面などのリストメインの音楽表示
-    <div className="musicItemList">
+export const MusicItemIcon = (props: DysplayMusic) => {
+  return (//ホーム画面などのサムネイルメインの音楽表示
+    <div className="musicItemIcon">
       <Link to={`/practice?musicID=${props.musicID}`}>
         タイトル:{props.title}
         アーティスト:{props.artist}
