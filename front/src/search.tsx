@@ -1,11 +1,12 @@
 import { LinkButton } from "./components/test/link";
 import { Navbar } from './components/Navbar';
+import { MusicItemList } from "./components/musicItemList";
 import { useState, useEffect, useCallback} from "react";
 import axios from "axios";
 import debounce from "lodash/debounce";
 
 type DysplayMusic ={
-    id : number;
+    musicID : number;
     title : string;
     artist : string;
     thumbnail : string;//画像のURL? 画像そのもの？
@@ -31,7 +32,7 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                 // 変更するたびに要素が追加されるダミー
                 const test = "test"+query;
                 setMusicList(prevList => {
-                    const updated = [{ id: musicList.length, title: test, artist: test, thumbnail: test }, ...prevList];
+                    const updated = [{ musicID: prevList.length, title: test, artist: test, thumbnail: test }, ...prevList];
                     console.log("検索結果:", updated);
                     return updated;
                 });
@@ -69,7 +70,14 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                     <div>
                         {musicList.map((music, index) => (
                             // 音楽表示用コンポーネントの作成
-                        <p key={index}>{music.title}</p>
+                        <div key={index}>
+                        <MusicItemList
+                            musicID={music.musicID}
+                            title={music.title}
+                            artist={music.artist}
+                            thumbnail={music.thumbnail}
+                        />
+                        </div>
                         ))}
                     </div>
                  ) : (//検索クエリが存在しない場合の画面
