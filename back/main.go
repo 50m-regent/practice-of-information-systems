@@ -94,6 +94,7 @@ func search(r *gin.Engine) {
 		defer DbConnection.Close()
 
 		var result []DisplayMusic
+		var rows *sql.Rows
 
 		switch query.SearchCategory {
 		case DiffSearch:
@@ -101,38 +102,36 @@ func search(r *gin.Engine) {
 			from Music M
 			join Sheets S on M.id = S.music_id
 			where S.difficulty = ` + strconv.Itoa(query.DiffSearch)
-			rows, _ := DbConnection.Query(cmd)
+			rows, _ = DbConnection.Query(cmd)
 			defer rows.Close()
-
-			var data []Music
-			for rows.Next() {
-				var m Music
-				err := rows.Scan(&m.Title, &m.MusicID, &m.Artist, &m.Thumbnail) //アドレスを引数に渡すstructにデータを入れてくれる
-				if err != nil {
-					log.Fatal(err)
-				}
-				data = append(data, m)
-			}
-			for _, m := range data {
-				fmt.Println(m.Title, m.MusicID, m.Artist, m.Thumbnail) // test
-				result = append(result, *NewDisplayMusic(m.Title, m.MusicID, m.Artist, m.Thumbnail))
-			}
 		case KeywordSearch:
-			cmd := ``
-			_, err := DbConnection.Exec(cmd)
-			if err != nil {
-				log.Fatal(err)
-			}
+			cmd := `select M.*
+			from Music M
+			where M.title like '%` + query.TextSearch + `%' or M.artist like '%` + query.TextSearch + `%';`
+			rows, _ = DbConnection.Query(cmd)
+			defer rows.Close()
 		case GenreSearch:
-			cmd := ``
-			_, err := DbConnection.Exec(cmd)
+			cmd := `select *
+			from Music
+			where genre = '` + query.GenreSearch.String() + `';`
+			rows, _ = DbConnection.Query(cmd)
+			defer rows.Close()
+		}
+
+		var data []Music
+		for rows.Next() {
+			var m Music
+			err := rows.Scan(&m.Title, &m.MusicID, &m.Artist, &m.Thumbnail) //アドレスを引数に渡すstructにデータを入れてくれる
 			if err != nil {
 				log.Fatal(err)
 			}
+			data = append(data, m)
 		}
-		ctx.JSON(http.StatusOK, gin.H{
-			// return result
-		})
+		for _, m := range data {
+			fmt.Println(m.Title, m.MusicID, m.Artist, m.Thumbnail) // test
+			result = append(result, *NewDisplayMusic(m.Title, m.MusicID, m.Artist, m.Thumbnail))
+		}
+		ctx.IndentedJSON(http.StatusOK, result)
 	})
 }
 
@@ -149,6 +148,16 @@ const (
 	Rock
 	etc //TODO
 )
+
+func (g Genre) String() string {
+	switch g {
+	case Pops:
+		return "Pops"
+	case Rock:
+		return "Rock"
+	}
+	return ""
+}
 
 type Music struct {
 	Sheets    []Sheet `json:"sheets"`
