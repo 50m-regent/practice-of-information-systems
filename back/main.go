@@ -1,21 +1,95 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	_ "github.com/mattn/go-sqlite3"
 )
 
+var DbConnection *sql.DB
+
 func main() {
-	fmt.Println("Hello World!")
+
 	r := gin.Default()
+	r.Use(cors.New(cors.Config{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{
+			"POST",
+			"GET",
+			"OPTIONS",
+		},
+		AllowHeaders: []string{
+			"Access-Control-Allow-Credentials",
+			"Access-Control-Allow-Headers",
+			"Content-Type",
+			"Content-Length",
+			"Accept-Encoding",
+			"Authorization",
+		},
+	}))
+
+	//database()
+
+	//hello(r)
+
+	search(r)
+
+	r.Run(":8080")
+
+}
+
+func hello(r *gin.Engine) {
+	fmt.Println("Hello World!")
 	r.GET("/hello", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "Hello, world!",
 		})
 	})
-	r.Run(":8080")
+}
+
+func database() {
+	DbConnection, _ := sql.Open("sqlite3", "./musicdata.sql")
+	defer DbConnection.Close()
+
+	cmd := `create table if not exists Music(
+	id int,
+	title string,
+	artis string,
+	genre string
+	)`
+	_, err := DbConnection.Exec(cmd)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cmd = `create table if not exists Sheets(
+	id int,
+	music_id int,
+	difficulty int,
+	sheet string
+	)`
+	_, err = DbConnection.Exec(cmd)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func search(r *gin.Engine) {
+	r.POST("/search", func(ctx *gin.Context) {
+		var query SearchCategory
+		if err := ctx.BindJSON(&query); err != nil {
+			return
+		}
+		// todo search process here
+		ctx.JSON(http.StatusOK, gin.H{
+			//
+		})
+	})
 }
 
 type Difficulty int
@@ -49,9 +123,9 @@ type AudioClip struct {
 }
 
 type DisplayMusic struct {
-	Title    string `json:"title"`
-	Artist   string `json:"artist"`
-	Tumbnail []int  `json:"tumbnail"`
+	Title     string `json:"title"`
+	Artist    string `json:"artist"`
+	Thumbnail []int  `json:"thumbnail"`
 }
 
 type SearchCategory int
@@ -64,7 +138,8 @@ const (
 )
 
 type SearchQuery struct {
-	DiffSearch  int    `json:"diffsearch"`
-	TextSearch  string `json:"textsearch"`
-	GenreSearch Genre  `json:"genresearch"`
+	DiffSearch     int            `json:"diff_search"`
+	TextSearch     string         `json:"text_search"`
+	GenreSearch    Genre          `json:"genre_search"`
+	SearchCategory SearchCategory `json:"search_category"`
 }
