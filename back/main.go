@@ -38,7 +38,9 @@ func main() {
 
 	//hello(r)
 
-	search(r)
+	search_api(r)
+
+	select_api(r)
 
 	r.Run(":8080")
 
@@ -61,6 +63,7 @@ func database() {
 	id int,
 	title string,
 	artis string,
+	base_difficulty int,
 	genre string,
 	thumbnail blob,
 	primary key (id)
@@ -84,7 +87,7 @@ func database() {
 	}
 }
 
-func search(r *gin.Engine) {
+func search_api(r *gin.Engine) {
 	r.POST("/search", func(ctx *gin.Context) {
 		var query SearchQuery
 		if err := ctx.BindJSON(&query); err != nil {
@@ -100,8 +103,7 @@ func search(r *gin.Engine) {
 		case DiffSearch:
 			cmd := `select M.*
 			from Music M
-			join Sheets S on M.id = S.music_id
-			where S.difficulty = ` + strconv.Itoa(query.DiffSearch)
+			where M.base_difficulty = ` + strconv.Itoa(query.DiffSearch)
 			rows, _ = DbConnection.Query(cmd)
 			defer rows.Close()
 		case KeywordSearch:
@@ -135,11 +137,51 @@ func search(r *gin.Engine) {
 	})
 }
 
+func select_api(r *gin.Engine) {
+	r.POST("/select", func(ctx *gin.Context) {
+		var music_id int
+		if err := ctx.BindJSON(&music_id); err != nil {
+			return
+		}
+		DbConnection, _ := sql.Open("sqlite3", "./musicdata.sql")
+		defer DbConnection.Close()
+
+		var rows *sql.Rows
+
+		cmd := `select *
+		from Music
+		where music_id = ` + strconv.Itoa(music_id)
+		rows, _ = DbConnection.Query(cmd)
+		defer rows.Close()
+		var music_info Music
+		err := rows.Scan(&music_info.Title, &music_info.MusicID, &music_info.Artist, &music_info.Genre, &music_info.Thumbnail)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		cmd = `select sheet, difficulty
+		from Sheets
+		where music_id = ` + strconv.Itoa(music_id)
+		rows, _ = DbConnection.Query(cmd)
+		defer rows.Close()
+
+		var data []Sheet
+		for rows.Next() {
+			var s Sheet
+			err := rows.Scan(&s.Sheet, &s.Difficulty) //アドレスを引数に渡すstructにデータを入れてくれる
+			if err != nil {
+				log.Fatal(err)
+			}
+			data = append(data, s)
+		}
+		result := *NewMusic(data, music_info.Title, music_id, music_info.Artist, music_info.Genre, music_info.Thumbnail)
+		ctx.IndentedJSON(http.StatusOK, result)
+	})
+}
+
 type Difficulty int
 
 type Proficiency float64
-
-type Sheet string
 
 type Genre int
 
@@ -159,6 +201,11 @@ func (g Genre) String() string {
 	return ""
 }
 
+type Sheet struct {
+	Sheet      string `json:"sheet"`
+	Difficulty int    `json:"dfficulty"`
+}
+
 type Music struct {
 	Sheets    []Sheet `json:"sheets"`
 	Title     string  `json:"title"`
@@ -166,6 +213,10 @@ type Music struct {
 	Artist    string  `json:"Artist"`
 	Genre     Genre   `json:"Genre"`
 	Thumbnail string  `json:"thumbnail"`
+}
+
+func NewMusic(sheets []Sheet, title string, id int, artist string, genre Genre, thumbnail string) *Music {
+	return &Music{Sheets: sheets, Title: title, MusicID: id, Artist: artist, Genre: genre, Thumbnail: thumbnail}
 }
 
 type MusicSegment struct {
