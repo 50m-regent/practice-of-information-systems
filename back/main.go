@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -60,7 +61,9 @@ func database() {
 	id int,
 	title string,
 	artis string,
-	genre string
+	genre string,
+	thumbnail blob,
+	primary key (id)
 	)`
 	_, err := DbConnection.Exec(cmd)
 	if err != nil {
@@ -71,7 +74,9 @@ func database() {
 	id int,
 	music_id int,
 	difficulty int,
-	sheet string
+	sheet string,
+	primary key (id),
+	foreign key (music_id)
 	)`
 	_, err = DbConnection.Exec(cmd)
 	if err != nil {
@@ -81,13 +86,52 @@ func database() {
 
 func search(r *gin.Engine) {
 	r.POST("/search", func(ctx *gin.Context) {
-		var query SearchCategory
+		var query SearchQuery
 		if err := ctx.BindJSON(&query); err != nil {
 			return
 		}
-		// todo search process here
+		DbConnection, _ := sql.Open("sqlite3", "./musicdata.sql")
+		defer DbConnection.Close()
+
+		var result []DisplayMusic
+
+		switch query.SearchCategory {
+		case DiffSearch:
+			cmd := `select M.*
+			from Music M
+			join Sheets S on M.id = S.music_id
+			where S.difficulty = ` + strconv.Itoa(query.DiffSearch)
+			rows, _ := DbConnection.Query(cmd)
+			defer rows.Close()
+
+			var data []Music
+			for rows.Next() {
+				var m Music
+				err := rows.Scan(&m.Title, &m.MusicID, &m.Artist, &m.Thumbnail) //アドレスを引数に渡すstructにデータを入れてくれる
+				if err != nil {
+					log.Fatal(err)
+				}
+				data = append(data, m)
+			}
+			for _, m := range data {
+				fmt.Println(m.Title, m.MusicID, m.Artist, m.Thumbnail) // test
+				result = append(result, *NewDisplayMusic(m.Title, m.MusicID, m.Artist, m.Thumbnail))
+			}
+		case KeywordSearch:
+			cmd := ``
+			_, err := DbConnection.Exec(cmd)
+			if err != nil {
+				log.Fatal(err)
+			}
+		case GenreSearch:
+			cmd := ``
+			_, err := DbConnection.Exec(cmd)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
 		ctx.JSON(http.StatusOK, gin.H{
-			//
+			// return result
 		})
 	})
 }
@@ -107,10 +151,12 @@ const (
 )
 
 type Music struct {
-	Sheets []Sheet `json:"sheets"`
-	Title  string  `json:"title"`
-	Artist string  `json:"Artist"`
-	Genre  Genre   `json:"Genre"`
+	Sheets    []Sheet `json:"sheets"`
+	Title     string  `json:"title"`
+	MusicID   int     `json:"music_id"`
+	Artist    string  `json:"Artist"`
+	Genre     Genre   `json:"Genre"`
+	Thumbnail string  `json:"thumbnail"`
 }
 
 type MusicSegment struct {
@@ -124,16 +170,20 @@ type AudioClip struct {
 
 type DisplayMusic struct {
 	Title     string `json:"title"`
+	MusicID   int    `json:"music_id"`
 	Artist    string `json:"artist"`
-	Thumbnail []int  `json:"thumbnail"`
+	Thumbnail string `json:"thumbnail"`
+}
+
+func NewDisplayMusic(title string, id int, artist string, thumbnail string) *DisplayMusic {
+	return &DisplayMusic{Title: title, MusicID: id, Artist: artist, Thumbnail: thumbnail}
 }
 
 type SearchCategory int
 
 const (
 	DiffSearch SearchCategory = iota
-	TitleSearch
-	ArtistSearch
+	KeywordSearch
 	GenreSearch
 )
 
