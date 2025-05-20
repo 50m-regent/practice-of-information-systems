@@ -15,6 +15,7 @@ export const Home = () => {
   const title: string = "ホーム画面";
   const [favoriteMusic, setFavoriteMusic] = useState<DysplayMusic[]>([]);
   const [recommendMusic, setRecommendMusic] = useState<DysplayMusic[]>([]);
+  const [quickAccess, setQuickAccess] = useState<DysplayMusic[]>([]);
 
   useEffect(() => {
     (
@@ -85,10 +86,12 @@ export const Home = () => {
             thumbnail: "https://via.placeholder.com/100x100?text=Reco5",
           },
         ]}
-        // const favoData = await axios.get("http://localhost:8080/favorite");
-        // const recoData = await axios.get("http://localhost:8080/recommend?");
+        // const favoData = await axios.get("http://localhost:8080/getfavorite");
+        // const recoData = await axios.get("http://localhost:8080/getrecommend?");
+        // const quickData = await axios.get("http://localhost:8080/getquickaccess");
         setFavoriteMusic(favoData.data.slice(0,Math.min(MAX_MUSIC_NUM, favoData.data.length)));
-        setRecommendMusic(recoData.data.slice(0,Math.min(MAX_MUSIC_NUM, recoData.data.length)));    
+        setRecommendMusic(recoData.data.slice(0,Math.min(MAX_MUSIC_NUM, recoData.data.length))); 
+        setQuickAccess(recoData.data.slice(0,Math.min(MAX_MUSIC_NUM, recoData.data.length)));  
         }
     )()
     },[])
@@ -98,7 +101,18 @@ export const Home = () => {
       ヘッダー
     <LinkButton text="Spotify認証画面/Auth" link="/auth" />
       <h3>クイックアクセス</h3>
-      内容不明
+        {
+          quickAccess.map((music) => (
+            <div key={music.musicID}>
+              <MusicItemIcon
+                musicID={music.musicID}
+                title={music.title}
+                artist={music.artist}
+                thumbnail={music.thumbnail}
+              />
+            </div>
+          ))
+        }
       <h3>お気に入り</h3>
         <LinkButton text="すべて見る" link="/favorite" />
         {
