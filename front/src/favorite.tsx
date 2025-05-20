@@ -2,7 +2,8 @@ import { LinkButton } from "./components/test/link";
 import { Navbar } from './components/Navbar';
 import { useState, useEffect} from "react";
 import axios from "axios";
-import { MusicItemList } from "./components/musicItemList";
+import { MusicItemIcon } from "./components/musicItemIcon";
+import "./css/favorite.css";
 type DysplayMusic ={
   musicID : number;
   title : string;
@@ -52,14 +53,14 @@ export const Favorite = () => {
 
     return (
         <>
-        <div className="Favorite">
         <h3>ヘッダー</h3>
         <LinkButton text="Spotify認証/Auth" link="/auth" />
         <h3>お気に入り</h3>
+        <div className="Favorite">
         {
           favoriteMusic.map((music) => (
             <div key={music.musicID}>
-              <MusicItemList
+              <MusicItemIcon
                 musicID={music.musicID}
                 title={music.title}
                 artist={music.artist}

@@ -1,0 +1,87 @@
+.musicItemIcon {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.musicItemIcon:hover {
+  transform: scale(1.02);
+}
+
+.imageContainer {
+  position: relative;
+}
+
+.imageContainer img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.textOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 8px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+  color: white;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.artist {
+  font-size: 12px;
+}
+
+/* .musicGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.musicItemIcon {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  text-align: left;
+  transition: transform 0.2s ease;
+}
+
+.musicItemIcon:hover {
+  transform: scale(1.02);
+}
+
+.musicItemIcon img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-bottom: 1px solid #eee;
+}
+
+.musicItemIcon a {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  padding: 8px;
+}
+
+.musicItemIcon .title {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.musicItemIcon .artist {
+  font-size: 12px;
+  color: #666;
+}
+
+.resizeimage img { width: 100%; } */
+

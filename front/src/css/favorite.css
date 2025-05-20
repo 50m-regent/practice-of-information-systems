@@ -1,0 +1,12 @@
+/* .Favorite {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  padding: 16px;
+} */
+.Favorite {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); /* 横並びで可変幅 */
+  gap: 16px;
+  padding: 16px;
+}
