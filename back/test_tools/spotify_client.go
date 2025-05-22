@@ -39,6 +39,28 @@ func main() {
 	// Sample access token for testing
 	tokenJSON := `{"access_token":"BQAV9rCv8dI8TCW4XVeGXS3N3f6Q9TPE5chqgkLV2YChlsKE6xeMcwsK6hWp3CiOo0gNlfYRKeKtximVStOewYCLfKUCFsOwm6oEcj3UCTp9QoSK3iKZzNJWnW2ij-Xe87m2Dj9qQjpGMe58RI_JUOC-E2e5JdAGDXw__CNvWPXpdB4gIsg7k3zNxjqgc1obOnK5k_L8n1LzE3etsuHq5lirvRv9Puf5n4IQOH-1uKWP8U2dsMyrJInTtIIzXdTgugwir0srdXJ3LiPY53RN1zvjqQdkoEWkFf8","token_type":"Bearer","expires_in":3600,"refresh_token":"AQAqkCywTiJ9lmhcxbqLwz3nK8emGaHyyST83A3USjHE3wRxX5cdHZ67bX4VZPlOQCUtVkHcEiljujN23xWfI96ZI3cgNjPpGX6gcEBmbw96JEk2F6nuexOeStP9LO03amw","scope":"playlist-read-private playlist-read-collaborative user-library-read user-follow-read user-read-recently-played user-read-email user-top-read user-read-private"}`
 
+	/*
+	* How to obtain a Spotify test access token:
+	*
+	* 1. Open your browser and navigate to the following URL:
+	*    https://accounts.spotify.com/authorize?client_id=826a4a6ab717454aa24268036207a028&response_type=code&redirect_uri=https://example.org/callback&scope=user-top-read%20user-read-recently-played%20user-library-read%20playlist-read-private%20playlist-read-collaborative%20user-follow-read
+	*
+	* 2. Log in to your Spotify account
+	*
+	* 3. After login, you will be redirected to example.org with a code parameter in the URL
+	*    Extract the code from the URL (it will be after "code=" in the URL)
+	*
+	* 4. Use the following curl command to exchange the code for an access token:
+	*    Replace <YOUR_AUTHORIZATION_CODE> with the code from step 3
+	*
+	*    curl -X POST https://accounts.spotify.com/api/token \
+	*      -H "Authorization: Basic ODI2YTRhNmFiNzE3NDU0YWEyNDI2ODAzNjIwN2EwMjg6YjA0ZjdiNjNlNDZiNGE5ZWFjN2Q3YzQ4YWY4MjBlZTU=" \
+	*      -H "Content-Type: application/x-www-form-urlencoded" \
+	*      -d "grant_type=authorization_code&code=<YOUR_AUTHORIZATION_CODE>&redirect_uri=https://example.org/callback"
+	*
+	* 5. The response will contain your access token and refresh token in JSON format
+	 */
+
 	var token TokenData
 	err := json.Unmarshal([]byte(tokenJSON), &token)
 	if err != nil {
