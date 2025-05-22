@@ -42,8 +42,34 @@ func main() {
 
 	select_api(r)
 
+	recommend_api(r)
+
 	r.Run(":8080")
 
+}
+
+type SpotifyRecommendRequest struct {
+	AccessToken string `json:"access_token"`
+	Limit       int    `json:"limit"`
+	Count       int    `json:"count"`
+}
+
+func recommend_api(r *gin.Engine) {
+	r.POST("/recommend", func(ctx *gin.Context) {
+		var request SpotifyRecommendRequest
+		if err := ctx.BindJSON(&request); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+
+		recommendations, err := GetRecommendationsFromRecentlyPlayed(request.AccessToken, request.Limit, request.Count)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, recommendations)
+	})
 }
 
 func hello(r *gin.Engine) {
