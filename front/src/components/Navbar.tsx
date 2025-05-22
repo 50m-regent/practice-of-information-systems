@@ -2,7 +2,7 @@ import './Navbar.css';
 import { LinkButton } from "./link";
 
 
-export const Navbar = () => {
+export const Navbar = () => {//フッター
     return (
         <nav className="nav">
             <LinkButton text="ホーム画面/Home" link="/home" />

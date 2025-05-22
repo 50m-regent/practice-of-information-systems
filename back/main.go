@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -37,7 +38,9 @@ func main() {
 
 	//hello(r)
 
-	search(r)
+	search_api(r)
+
+	select_api(r)
 
 	r.Run(":8080")
 
@@ -60,7 +63,10 @@ func database() {
 	id int,
 	title string,
 	artis string,
-	genre string
+	base_difficulty int,
+	genre string,
+	thumbnail blob,
+	primary key (id)
 	)`
 	_, err := DbConnection.Exec(cmd)
 	if err != nil {
@@ -71,7 +77,9 @@ func database() {
 	id int,
 	music_id int,
 	difficulty int,
-	sheet string
+	sheet string,
+	primary key (id),
+	foreign key (music_id)
 	)`
 	_, err = DbConnection.Exec(cmd)
 	if err != nil {
@@ -79,24 +87,101 @@ func database() {
 	}
 }
 
-func search(r *gin.Engine) {
+func search_api(r *gin.Engine) {
 	r.POST("/search", func(ctx *gin.Context) {
-		var query SearchCategory
+		var query SearchQuery
 		if err := ctx.BindJSON(&query); err != nil {
 			return
 		}
-		// todo search process here
-		ctx.JSON(http.StatusOK, gin.H{
-			//
-		})
+		DbConnection, _ := sql.Open("sqlite3", "./musicdata.sql")
+		defer DbConnection.Close()
+
+		var result []DisplayMusic
+		var rows *sql.Rows
+
+		switch query.SearchCategory {
+		case DiffSearch:
+			cmd := `select M.*
+			from Music M
+			where M.base_difficulty = ` + strconv.Itoa(query.DiffSearch)
+			rows, _ = DbConnection.Query(cmd)
+			defer rows.Close()
+		case KeywordSearch:
+			cmd := `select M.*
+			from Music M
+			where M.title like '%` + query.TextSearch + `%' or M.artist like '%` + query.TextSearch + `%';`
+			rows, _ = DbConnection.Query(cmd)
+			defer rows.Close()
+		case GenreSearch:
+			cmd := `select *
+			from Music
+			where genre = '` + query.GenreSearch.String() + `';`
+			rows, _ = DbConnection.Query(cmd)
+			defer rows.Close()
+		}
+
+		var data []Music
+		for rows.Next() {
+			var m Music
+			err := rows.Scan(&m.Title, &m.MusicID, &m.Artist, &m.Thumbnail) //アドレスを引数に渡すstructにデータを入れてくれる
+			if err != nil {
+				log.Fatal(err)
+			}
+			data = append(data, m)
+		}
+		for _, m := range data {
+			fmt.Println(m.Title, m.MusicID, m.Artist, m.Thumbnail) // test
+			result = append(result, *NewDisplayMusic(m.Title, m.MusicID, m.Artist, m.Thumbnail))
+		}
+		ctx.IndentedJSON(http.StatusOK, result)
+	})
+}
+
+func select_api(r *gin.Engine) {
+	r.POST("/select", func(ctx *gin.Context) {
+		var music_id int
+		if err := ctx.BindJSON(&music_id); err != nil {
+			return
+		}
+		DbConnection, _ := sql.Open("sqlite3", "./musicdata.sql")
+		defer DbConnection.Close()
+
+		var rows *sql.Rows
+
+		cmd := `select *
+		from Music
+		where music_id = ` + strconv.Itoa(music_id)
+		rows, _ = DbConnection.Query(cmd)
+		defer rows.Close()
+		var music_info Music
+		err := rows.Scan(&music_info.Title, &music_info.MusicID, &music_info.Artist, &music_info.Genre, &music_info.Thumbnail)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		cmd = `select sheet, difficulty
+		from Sheets
+		where music_id = ` + strconv.Itoa(music_id)
+		rows, _ = DbConnection.Query(cmd)
+		defer rows.Close()
+
+		var data []Sheet
+		for rows.Next() {
+			var s Sheet
+			err := rows.Scan(&s.Sheet, &s.Difficulty) //アドレスを引数に渡すstructにデータを入れてくれる
+			if err != nil {
+				log.Fatal(err)
+			}
+			data = append(data, s)
+		}
+		result := *NewMusic(data, music_info.Title, music_id, music_info.Artist, music_info.Genre, music_info.Thumbnail)
+		ctx.IndentedJSON(http.StatusOK, result)
 	})
 }
 
 type Difficulty int
 
 type Proficiency float64
-
-type Sheet string
 
 type Genre int
 
@@ -106,11 +191,32 @@ const (
 	etc //TODO
 )
 
+func (g Genre) String() string {
+	switch g {
+	case Pops:
+		return "Pops"
+	case Rock:
+		return "Rock"
+	}
+	return ""
+}
+
+type Sheet struct {
+	Sheet      string `json:"sheet"`
+	Difficulty int    `json:"dfficulty"`
+}
+
 type Music struct {
-	Sheets []Sheet `json:"sheets"`
-	Title  string  `json:"title"`
-	Artist string  `json:"Artist"`
-	Genre  Genre   `json:"Genre"`
+	Sheets    []Sheet `json:"sheets"`
+	Title     string  `json:"title"`
+	MusicID   int     `json:"music_id"`
+	Artist    string  `json:"Artist"`
+	Genre     Genre   `json:"Genre"`
+	Thumbnail string  `json:"thumbnail"`
+}
+
+func NewMusic(sheets []Sheet, title string, id int, artist string, genre Genre, thumbnail string) *Music {
+	return &Music{Sheets: sheets, Title: title, MusicID: id, Artist: artist, Genre: genre, Thumbnail: thumbnail}
 }
 
 type MusicSegment struct {
@@ -124,16 +230,20 @@ type AudioClip struct {
 
 type DisplayMusic struct {
 	Title     string `json:"title"`
+	MusicID   int    `json:"music_id"`
 	Artist    string `json:"artist"`
-	Thumbnail []int  `json:"thumbnail"`
+	Thumbnail string `json:"thumbnail"`
+}
+
+func NewDisplayMusic(title string, id int, artist string, thumbnail string) *DisplayMusic {
+	return &DisplayMusic{Title: title, MusicID: id, Artist: artist, Thumbnail: thumbnail}
 }
 
 type SearchCategory int
 
 const (
 	DiffSearch SearchCategory = iota
-	TitleSearch
-	ArtistSearch
+	KeywordSearch
 	GenreSearch
 )
 
