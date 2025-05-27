@@ -2,23 +2,34 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var DbConnection *sql.DB
-
 func main() {
 
+	// init db connection
+	db, err := sql.Open("sqlite3", "./musicdata.sql")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	// setup db schema
+	if err := setupDBSchema(db); err != nil {
+		log.Fatal(err)
+	}
+
+	// setup gin router
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"*"},
+		AllowOrigins: []string{"*"}, // for dev
 		AllowMethods: []string{
 			"POST",
 			"GET",
@@ -34,16 +45,11 @@ func main() {
 		},
 	}))
 
-	//database()
-
 	//hello(r)
-
-	search_api(r)
-
-	select_api(r)
-
+	search_api(r, db)
+	select_api(r, db)
+	proficiency_api(r, db)
 	r.Run(":8080")
-
 }
 
 func hello(r *gin.Engine) {
@@ -55,127 +61,227 @@ func hello(r *gin.Engine) {
 	})
 }
 
-func database() {
-	DbConnection, _ := sql.Open("sqlite3", "./musicdata.sql")
-	defer DbConnection.Close()
-
+func setupDBSchema(db *sql.DB) error {
 	cmd := `create table if not exists Music(
-	id int,
-	title string,
-	artis string,
-	base_difficulty int,
-	genre string,
-	thumbnail blob,
-	primary key (id)
+	id integer primary key autoincrement,
+	title text not null,
+	artist text,
+	base_difficulty integer,
+	genre text,
+	thumbnail text
 	)`
-	_, err := DbConnection.Exec(cmd)
-	if err != nil {
-		log.Fatal(err)
+
+	if _, err := db.Exec(cmd); err != nil {
+		return err
 	}
 
 	cmd = `create table if not exists Sheets(
-	id int,
-	music_id int,
-	difficulty int,
-	sheet string,
-	primary key (id),
-	foreign key (music_id)
+	id integer primary key autoincrement,
+	music_id integer,
+	difficulty integer not null,
+	sheet text not null,
+	foreign key (music_id) references Music(id)
 	)`
-	_, err = DbConnection.Exec(cmd)
-	if err != nil {
-		log.Fatal(err)
+
+	if _, err := db.Exec(cmd); err != nil {
+		return err
 	}
+
+	// UserProficiency table
+	cmd = `CREATE TABLE IF NOT EXISTS UserProficiency (
+		singleton_key INTEGER PRIMARY KEY DEFAULT 1 CHECK (singleton_key = 1),
+		proficiency REAL NOT NULL DEFAULT 0.0
+	)`
+	if _, err := db.Exec(cmd); err != nil {
+		return fmt.Errorf("failed to create UserProficiency table: %w", err)
+	}
+	// Initialize proficiency if it doesn't exist
+	cmd = `INSERT OR IGNORE INTO UserProficiency (singleton_key, proficiency) VALUES (1, 0.0)`
+	if _, err := db.Exec(cmd); err != nil {
+		return fmt.Errorf("failed to initialize UserProficiency: %w", err)
+	}
+
+	// Favorites table
+	cmd = `CREATE TABLE IF NOT EXISTS Favorites (
+		music_id INTEGER PRIMARY KEY,
+		order_key TEXT, 
+		FOREIGN KEY (music_id) REFERENCES Music(id)
+	)`
+	if _, err := db.Exec(cmd); err != nil {
+		return fmt.Errorf("failed to create Favorites table: %w", err)
+	}
+
+	// UserMusicDifficultySettings table
+	cmd = `CREATE TABLE IF NOT EXISTS UserMusicDifficultySettings (
+		music_id INTEGER NOT NULL,
+		measure INTEGER NOT NULL,
+		difficulty INTEGER NOT NULL,
+		PRIMARY KEY (music_id, measure),
+		FOREIGN KEY (music_id) REFERENCES Music(id)
+	)`
+	if _, err := db.Exec(cmd); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func search_api(r *gin.Engine) {
+func search_api(r *gin.Engine, db *sql.DB) {
 	r.POST("/search", func(ctx *gin.Context) {
 		var query SearchQuery
 		if err := ctx.BindJSON(&query); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		DbConnection, _ := sql.Open("sqlite3", "./musicdata.sql")
-		defer DbConnection.Close()
 
 		var result []DisplayMusic
 		var rows *sql.Rows
+		var err error
+		baseQuery := "SELECT id, title, artist, thumbnail FROM Music " // Corrected 'artis' to 'artist'
+		var args []interface{}
 
 		switch query.SearchCategory {
 		case DiffSearch:
-			cmd := `select M.*
-			from Music M
-			where M.base_difficulty = ` + strconv.Itoa(query.DiffSearch)
-			rows, _ = DbConnection.Query(cmd)
-			defer rows.Close()
+			baseQuery += "WHERE base_difficulty = ?" // Added space before WHERE
+			args = append(args, query.DiffSearch)
 		case KeywordSearch:
-			cmd := `select M.*
-			from Music M
-			where M.title like '%` + query.TextSearch + `%' or M.artist like '%` + query.TextSearch + `%';`
-			rows, _ = DbConnection.Query(cmd)
-			defer rows.Close()
+			searchText := "%" + query.TextSearch + "%"
+			baseQuery += "WHERE title LIKE ? OR artist LIKE ?" // Added space before WHERE
+			args = append(args, searchText, searchText)
 		case GenreSearch:
-			cmd := `select *
-			from Music
-			where genre = '` + query.GenreSearch.String() + `';`
-			rows, _ = DbConnection.Query(cmd)
-			defer rows.Close()
+			baseQuery += "WHERE genre = ?" // Added space before WHERE
+			args = append(args, query.GenreSearch.String())
+		default:
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid search category"})
+			return
 		}
 
-		var data []Music
-		for rows.Next() {
-			var m Music
-			err := rows.Scan(&m.Title, &m.MusicID, &m.Artist, &m.Thumbnail) //アドレスを引数に渡すstructにデータを入れてくれる
-			if err != nil {
-				log.Fatal(err)
-			}
-			data = append(data, m)
+		log.Printf("Executing search query: %s with args: %v", baseQuery, args) // For debugging
+
+		rows, err = db.Query(baseQuery, args...)
+		if err != nil {
+			log.Printf("Error executing search query: %v", err) // Changed log.Fatal to log.Printf
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error executing query"})
+			return
 		}
-		for _, m := range data {
-			fmt.Println(m.Title, m.MusicID, m.Artist, m.Thumbnail) // test
-			result = append(result, *NewDisplayMusic(m.Title, m.MusicID, m.Artist, m.Thumbnail))
+		defer rows.Close()
+
+		for rows.Next() {
+			var dm DisplayMusic
+			if scanErr := rows.Scan(&dm.MusicID, &dm.Title, &dm.Artist, &dm.Thumbnail); scanErr != nil {
+				log.Printf("Database scan error in search: %v", scanErr)
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Database scan error"})
+				return
+			}
+			result = append(result, dm)
 		}
 		ctx.IndentedJSON(http.StatusOK, result)
 	})
 }
 
-func select_api(r *gin.Engine) {
+func select_api(r *gin.Engine, db *sql.DB) {
 	r.POST("/select", func(ctx *gin.Context) {
-		var music_id int
-		if err := ctx.BindJSON(&music_id); err != nil {
+		var req SelectRequest
+		if err := ctx.BindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
 			return
 		}
-		DbConnection, _ := sql.Open("sqlite3", "./musicdata.sql")
-		defer DbConnection.Close()
 
-		var rows *sql.Rows
+		musicData := Music{MusicID: req.MusicID}
+		var genreStr string
 
-		cmd := `select *
-		from Music
-		where music_id = ` + strconv.Itoa(music_id)
-		rows, _ = DbConnection.Query(cmd)
-		defer rows.Close()
-		var music_info Music
-		err := rows.Scan(&music_info.Title, &music_info.MusicID, &music_info.Artist, &music_info.Genre, &music_info.Thumbnail)
+		// Fetch music metadata
+		err := db.QueryRow("SELECT title, artist, genre, thumbnail FROM Music WHERE id = ?", req.MusicID).Scan(
+			&musicData.Title, &musicData.Artist, &genreStr, &musicData.Thumbnail,
+		)
 		if err != nil {
-			log.Fatal(err)
+			if err == sql.ErrNoRows {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Music not found"})
+				return
+			}
+			log.Printf("Database error querying music metadata (id: %d): %v", req.MusicID, err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve music metadata"})
+			return
 		}
 
-		cmd = `select sheet, difficulty
-		from Sheets
-		where music_id = ` + strconv.Itoa(music_id)
-		rows, _ = DbConnection.Query(cmd)
+		parsedGenre, genreErr := ParseGenre(genreStr)
+		if genreErr != nil {
+			log.Printf("Error parsing genre '%s' for music_id %d: %v", genreStr, req.MusicID, genreErr)
+			// Decide if this is a fatal error or if you want to proceed with a default/unknown genre
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse genre information"})
+			return
+		}
+		musicData.Genre = parsedGenre
+
+		// Fetch sheets for the music
+		rows, err := db.Query("SELECT sheet, difficulty FROM Sheets WHERE music_id = ?", req.MusicID)
+		if err != nil {
+			log.Printf("Database error querying sheets (music_id: %d): %v", req.MusicID, err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve sheets"})
+			return
+		}
 		defer rows.Close()
 
-		var data []Sheet
+		var sheets []Sheet
 		for rows.Next() {
 			var s Sheet
-			err := rows.Scan(&s.Sheet, &s.Difficulty) //アドレスを引数に渡すstructにデータを入れてくれる
-			if err != nil {
-				log.Fatal(err)
+			if scanErr := rows.Scan(&s.Sheet, &s.Difficulty); scanErr != nil {
+				log.Printf("Database scan error for sheet (music_id: %d): %v", req.MusicID, scanErr)
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan sheet data"})
+				return
 			}
-			data = append(data, s)
+			sheets = append(sheets, s)
 		}
-		result := *NewMusic(data, music_info.Title, music_id, music_info.Artist, music_info.Genre, music_info.Thumbnail)
-		ctx.IndentedJSON(http.StatusOK, result)
+		if err = rows.Err(); err != nil {
+			log.Printf("Error iterating sheet rows (music_id: %d): %v", req.MusicID, err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error processing sheets data"})
+			return
+		}
+		musicData.Sheets = sheets
+		ctx.IndentedJSON(http.StatusOK, musicData)
+	})
+}
+
+// ProficiencyAPIRequest defines the structure for updating proficiency
+type UpdateProficiencyRequest struct {
+	Proficiency float64 `json:"proficiency"`
+}
+
+func proficiency_api(r *gin.Engine, db *sql.DB) {
+	// Get current proficiency
+	r.GET("/proficiency", func(ctx *gin.Context) {
+		var proficiency float64
+		err := db.QueryRow("SELECT proficiency FROM UserProficiency WHERE singleton_key = 1").Scan(&proficiency)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				// This case should ideally be handled by initialization,
+				// but as a fallback, return 0.0 or an appropriate error.
+				log.Printf("UserProficiency record not found, returning default 0.0")
+				ctx.JSON(http.StatusOK, 0.0) // Or http.StatusInternalServerError
+				return
+			}
+			log.Printf("Error fetching proficiency: %v", err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch proficiency"})
+			return
+		}
+		ctx.JSON(http.StatusOK, proficiency)
+	})
+
+	// Update proficiency
+	r.PUT("/proficiency", func(ctx *gin.Context) {
+		var req UpdateProficiencyRequest
+		if err := ctx.BindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+			return
+		}
+
+		_, err := db.Exec("UPDATE UserProficiency SET proficiency = ? WHERE singleton_key = 1", req.Proficiency)
+		if err != nil {
+			log.Printf("Error updating proficiency: %v", err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update proficiency"})
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "Proficiency updated successfully", "proficiency": req.Proficiency})
 	})
 }
 
@@ -197,21 +303,35 @@ func (g Genre) String() string {
 		return "Pops"
 	case Rock:
 		return "Rock"
+	case etc:
+		return "etc"
 	}
-	return ""
+	return "Unknown" // Default for unhandled cases
+}
+
+func ParseGenre(s string) (Genre, error) {
+	switch s {
+	case "Pops":
+		return Pops, nil
+	case "Rock":
+		return Rock, nil
+	case "etc":
+		return etc, nil
+	}
+	return -1, errors.New("unknown genre: " + s) // Return an invalid Genre value and an error
 }
 
 type Sheet struct {
 	Sheet      string `json:"sheet"`
-	Difficulty int    `json:"dfficulty"`
+	Difficulty int    `json:"difficulty"`
 }
 
 type Music struct {
 	Sheets    []Sheet `json:"sheets"`
 	Title     string  `json:"title"`
 	MusicID   int     `json:"music_id"`
-	Artist    string  `json:"Artist"`
-	Genre     Genre   `json:"Genre"`
+	Artist    string  `json:"artist"`
+	Genre     Genre   `json:"genre"`
 	Thumbnail string  `json:"thumbnail"`
 }
 
@@ -225,7 +345,7 @@ type MusicSegment struct {
 
 type AudioClip struct {
 	Clip       []float64    `json:"clip"`
-	NowPlaying MusicSegment `json:"nowplaying"`
+	NowPlaying MusicSegment `json:"now_playing"`
 }
 
 type DisplayMusic struct {
@@ -252,4 +372,8 @@ type SearchQuery struct {
 	TextSearch     string         `json:"text_search"`
 	GenreSearch    Genre          `json:"genre_search"`
 	SearchCategory SearchCategory `json:"search_category"`
+}
+
+type SelectRequest struct {
+	MusicID int `json:"music_id"`
 }
