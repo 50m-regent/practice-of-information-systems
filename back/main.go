@@ -17,7 +17,7 @@ import (
 func main() {
 
 	// init db connection
-	db, err := sql.Open("sqlite3", "./musicdata.sql")
+	db, err := sql.Open("sqlite3", "./musicdata.sql?_foreign_keys=on")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,6 +57,8 @@ func main() {
 
 	spotify_recommend_api(r)
 	proficiency_recommend_api(r, db)
+
+	favorites_api(r, db)
 
 	r.Run(":8080")
 
@@ -180,7 +182,7 @@ func setupDBSchema(db *sql.DB) error {
 	// Favorites table
 	cmd = `CREATE TABLE IF NOT EXISTS Favorites (
 		music_id INTEGER PRIMARY KEY,
-		order_key TEXT,
+		order_key INTEGER NOT NULL,
 		FOREIGN KEY (music_id) REFERENCES Music(id)
 	)`
 	if _, err := db.Exec(cmd); err != nil {
@@ -524,4 +526,61 @@ type SearchQuery struct {
 
 type SelectRequest struct {
 	MusicID int `json:"music_id"`
+}
+
+type AddFavoriteRequest struct {
+	MusicID int `json:"music_id"`
+}
+
+type SetFavoritesRequest struct {
+	MusicIDs []int `json:"music_ids"`
+}
+
+func favorites_api(r *gin.Engine, db *sql.DB) {
+	// Add a favorite
+	r.POST("/favorites", func(ctx *gin.Context) {
+		var req AddFavoriteRequest
+		if err := ctx.BindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+			return
+		}
+		if req.MusicID <= 0 {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid music_id"})
+			return
+		}
+
+		if err := AddFavorite(db, req.MusicID); err != nil {
+			log.Printf("Error adding favorite: %v", err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add favorite"})
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "Favorite added successfully"})
+	})
+
+	// Get all favorites
+	r.GET("/favorites", func(ctx *gin.Context) {
+		favorites, err := GetFavorites(db)
+		if err != nil {
+			log.Printf("Error getting favorites: %v", err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get favorites"})
+			return
+		}
+		ctx.JSON(http.StatusOK, favorites)
+	})
+
+	// Set/Reorder favorites
+	r.PUT("/favorites", func(ctx *gin.Context) {
+		var req SetFavoritesRequest
+		if err := ctx.BindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+			return
+		}
+
+		if err := SetFavorites(db, req.MusicIDs); err != nil {
+			log.Printf("Error setting favorites: %v", err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set favorites"})
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": "Favorites set successfully"})
+	})
 }

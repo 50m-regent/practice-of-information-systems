@@ -43,7 +43,7 @@ func main() {
 	* How to obtain a Spotify test access token:
 	*
 	* 1. Open your browser and navigate to the following URL:
-	*    https://accounts.spotify.com/authorize?client_id=826a4a6ab717454aa24268036207a028&response_type=code&redirect_uri=https://example.org/callback&scope=user-top-read%20user-read-recently-played%20user-library-read%20playlist-read-private%20playlist-read-collaborative%20user-follow-read
+	*    https://accounts.spotify.com/authorize?client_id=826a4a6ab717454aa24268036207a028&response_type=code&redirect_uri=http://127.0.0.1:5173/callback.html&scope=user-top-read%20user-read-recently-played%20user-library-read%20playlist-read-private%20playlist-read-collaborative%20user-follow-read
 	*
 	* 2. Log in to your Spotify account
 	*
