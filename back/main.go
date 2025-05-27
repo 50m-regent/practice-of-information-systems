@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -54,8 +56,10 @@ func main() {
 	proficiency_api(r, db)
 
 	recommend_api(r)
+	proficiency_recommend_api(r, db)
 
 	r.Run(":8080")
+
 }
 
 // SpotifyRecommendRequest defines the structure for the recommendation request body.
@@ -176,7 +180,7 @@ func setupDBSchema(db *sql.DB) error {
 	// Favorites table
 	cmd = `CREATE TABLE IF NOT EXISTS Favorites (
 		music_id INTEGER PRIMARY KEY,
-		order_key TEXT, 
+		order_key TEXT,
 		FOREIGN KEY (music_id) REFERENCES Music(id)
 	)`
 	if _, err := db.Exec(cmd); err != nil {
@@ -354,6 +358,78 @@ func proficiency_api(r *gin.Engine, db *sql.DB) {
 			return
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "Proficiency updated successfully", "proficiency": req.Proficiency})
+	})
+}
+
+func proficiency_recommend_api(r *gin.Engine, db *sql.DB) {
+	r.GET("/recommendations/proficiency", func(ctx *gin.Context) {
+		// Default values
+		defaultCount := 5
+		defaultTolerance := 1
+
+		countStr := ctx.DefaultQuery("count", fmt.Sprintf("%d", defaultCount))
+		count, err := strconv.Atoi(countStr)
+		if err != nil || count <= 0 {
+			count = defaultCount
+			log.Printf("Invalid 'count' query parameter, using default %d", count)
+		}
+
+		toleranceStr := ctx.DefaultQuery("tolerance", fmt.Sprintf("%d", defaultTolerance))
+		tolerance, err := strconv.Atoi(toleranceStr)
+		if err != nil || tolerance < 0 { // Tolerance can be 0
+			tolerance = defaultTolerance
+			log.Printf("Invalid 'tolerance' query parameter, using default %d", tolerance)
+		}
+
+		// 1. Get User Proficiency
+		var userProficiencyFloat float64
+		err = db.QueryRow("SELECT proficiency FROM UserProficiency WHERE singleton_key = 1").Scan(&userProficiencyFloat)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				// Should be initialized, but handle defensively
+				log.Printf("UserProficiency record not found, cannot make proficiency-based recommendations.")
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "User proficiency not found"})
+				return
+			}
+			log.Printf("Error fetching user proficiency: %v", err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user proficiency"})
+			return
+		}
+
+		// 2. Round proficiency
+		roundedProficiency := int(math.Round(userProficiencyFloat))
+
+		// 3. Calculate difficulty range
+		minDifficulty := roundedProficiency - tolerance
+		maxDifficulty := roundedProficiency + tolerance
+
+		// 4. Query Music
+		query := `
+			SELECT id, title, artist, thumbnail
+			FROM Music
+			WHERE base_difficulty >= ? AND base_difficulty <= ?
+			ORDER BY RANDOM()
+			LIMIT ?`
+
+		rows, err := db.Query(query, minDifficulty, maxDifficulty, count)
+		if err != nil {
+			log.Printf("Error querying proficiency-based recommendations: %v", err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query recommendations"})
+			return
+		}
+		defer rows.Close()
+
+		var recommendations []DisplayMusic
+		for rows.Next() {
+			var dm DisplayMusic
+			if err := rows.Scan(&dm.MusicID, &dm.Title, &dm.Artist, &dm.Thumbnail); err != nil {
+				log.Printf("Error scanning recommendation row: %v", err)
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process recommendation data"})
+				return
+			}
+			recommendations = append(recommendations, dm)
+		}
+		ctx.JSON(http.StatusOK, recommendations)
 	})
 }
 
