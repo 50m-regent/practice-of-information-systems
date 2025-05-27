@@ -37,7 +37,7 @@ type RecommendedTrack struct {
 
 func main() {
 	// Sample access token for testing
-	tokenJSON := `{"access_token":"BQBj-LWdKyReJxOX0qJHfyB61_zrazviU_F-5iX4dYdyMBMNzxUVfI41Q-DchBekWCz5vF4ibNVs9l_p_Q8qicGFG2fdh7nmo6jswHONf5o-IC6EMW0IOlLVM1si3yzwCF62fy2hRMNIUbktqa6KItCRaPOf3M7jApYkN9cSlOMAM08NTf9LfJclAL_J1j2cPUPJlLXr38KbEM6EQbKg3tcfWX3LROyAUJQhR9beTvxHGdWnTONlqvIUAKyKYKN96OE73Ls9AcXihroH6WK2yw","token_type":"Bearer","expires_in":3600,"refresh_token":"AQD_Xfn-d18Xz8FgSCDjpFWP9zzXuKQu4ezqIh91sDkkbmy_hT4f6Dt2JdS-0qtPit51Wa4h1lzBH16ZLKCYemK5jqKk11wPL2BHMp-k38twM8rTm3Qj_CaDuixDQDKtmh4","scope":"playlist-read-private playlist-read-collaborative user-library-read user-follow-read user-read-recently-played user-top-read"}`
+	tokenJSON := `{"access_token":"BQCPPfGuBhjJktnT3wiCXrI1qU7z3XbzP0Kr2FwM6GywEchlvGePVN6F1CIYfTuEW3p56wYx4w7GoznnAo7s5ot_fxypYgFMcvYhNG-tFFTdzsgeETo-DeBEe3GSJweTdH2intIARnRlD-8s-z1KpFy0gcUT-qDJRlzVkYe08_xr08hUXVgoxHe6ZDfnDVoFjtd-pOXNQr1gHF_Ys9td_jJ9XZBhUBTUDCgwy1wE_yk4CPfUehBTZSghyzNfxhixU5GxUWEs-_fljdYa9zfCxg","token_type":"Bearer","expires_in":3600,"refresh_token":"AQBjq_ww621v3lqzmUysFO6MMm8e_m3IaERJgIHHv_8DlBdnfhQmIuK-pMW509tEyIzJhGnYnD1Xq_9KcFzX-EGe8jzvaZsyCOhyKDSrzodZbVoiXr-nYg-yYVZRjdrlYmg","scope":"playlist-read-private playlist-read-collaborative user-library-read user-follow-read user-read-recently-played user-top-read"}`
 
 	/*
 	* How to obtain a Spotify test access token:

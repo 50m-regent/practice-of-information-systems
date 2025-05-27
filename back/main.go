@@ -48,12 +48,54 @@ func main() {
 
 }
 
+// SpotifyRecommendRequest defines the structure for the recommendation request body.
 type SpotifyRecommendRequest struct {
 	AccessToken string `json:"access_token"`
-	Limit       int    `json:"limit"`
-	Count       int    `json:"count"`
+	Limit       int    `json:"limit"` // Optional: Max number of recently played tracks to fetch from Spotify (default: 10)
+	Count       int    `json:"count"` // Optional: Number of tracks to recommend (default: 2)
 }
 
+/*
+ * Handles requests to the /recommend endpoint.
+ *
+ * This API endpoint provides song recommendations based on the user's recently played tracks
+ * on Spotify. It requires a valid Spotify access token.
+ *
+ * Method: POST
+ * URL: /recommend
+ *
+ * Request Body (JSON):
+ * {
+ *   "access_token": "YOUR_SPOTIFY_ACCESS_TOKEN", // Required: User's Spotify access token
+ *   "limit": 10,                                  // Optional: How many recent tracks to consider (default: 10)
+ *   "count": 2                                    // Optional: How many recommendations to return (default: 2)
+ * }
+ *
+ * Successful Response (200 OK, JSON):
+ * An array of RecommendedTrack objects:
+ * [
+ *   {
+ *     "id": "spotify_track_id_1",
+ *     "title": "Song Title 1",
+ *     "artist": "Artist Name 1",
+ *     "album": "Album Name 1",
+ *     "image_url": "url_to_album_cover_1.jpg"
+ *   },
+ *   {
+ *     "id": "spotify_track_id_2",
+ *     "title": "Song Title 2",
+ *     "artist": "Artist Name 2",
+ *     "album": "Album Name 2",
+ *     "image_url": "url_to_album_cover_2.jpg"
+ *   }
+ * ]
+ *
+ * Error Responses:
+ * - 400 Bad Request (JSON): If the request body is invalid.
+ *   { "error": "Invalid request body" }
+ * - 500 Internal Server Error (JSON): If there's an error fetching or processing recommendations.
+ *   { "error": "Description of the error" }
+ */
 func recommend_api(r *gin.Engine) {
 	r.POST("/recommend", func(ctx *gin.Context) {
 		var request SpotifyRecommendRequest
