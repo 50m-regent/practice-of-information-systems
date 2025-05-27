@@ -55,7 +55,7 @@ func main() {
 
 	proficiency_api(r, db)
 
-	recommend_api(r)
+	spotify_recommend_api(r)
 	proficiency_recommend_api(r, db)
 
 	r.Run(":8080")
@@ -70,13 +70,13 @@ type SpotifyRecommendRequest struct {
 }
 
 /*
- * Handles requests to the /recommend endpoint.
+ * Handles requests to the /recommendations/spotify endpoint.
  *
  * This API endpoint provides song recommendations based on the user's recently played tracks
  * on Spotify. It requires a valid Spotify access token.
  *
  * Method: POST
- * URL: /recommend
+ * URL: /recommendations/spotify
  *
  * Request Body (JSON):
  * {
@@ -110,8 +110,8 @@ type SpotifyRecommendRequest struct {
  * - 500 Internal Server Error (JSON): If there's an error fetching or processing recommendations.
  *   { "error": "Description of the error" }
  */
-func recommend_api(r *gin.Engine) {
-	r.POST("/recommend", func(ctx *gin.Context) {
+func spotify_recommend_api(r *gin.Engine) {
+	r.POST("/recommendations/spotify", func(ctx *gin.Context) {
 		var request SpotifyRecommendRequest
 		if err := ctx.BindJSON(&request); err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
