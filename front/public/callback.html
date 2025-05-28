@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spotify Auth Callback</title>
+  <script>
+    window.onload = function() {
+      // Authorization Code Flowでは、パラメータはクエリ文字列 (?以降) に含まれる
+      const queryParams = new URLSearchParams(window.location.search);
+
+      const code = queryParams.get('code');
+      const state = queryParams.get('state');
+      const error = queryParams.get('error');
+
+      console.log('Code:', code);
+      console.log('State:', state);
+      console.log('Error:', error);
+
+      // Implicit Grant Flow用のパラメータは不要なので削除
+      // const accessToken = params.get('access_token');
+      // const expiresIn = params.get('expires_in');
+      // const tokenType = params.get('token_type');
+
+      if (window.opener) {
+        // openerが存在する場合、そのオリジンもログに出してみる（セキュリティ上の理由でアクセスできない場合もある）
+        try {
+          console.log("callback.html: window.opener exists. Opener origin:", window.opener.location.origin);
+        } catch (e) {
+          console.log("callback.html: window.opener exists, but cannot access opener.location.origin (cross-origin). This is usually fine if postMessage targetOrigin is correct.");
+        }
+        console.log("callback.html: Preparing to send message with data:", { type: error ? 'spotifyAuthError' : (code ? 'spotifyAuthSuccess' : 'unknown'), code: code, error: error, state: state });
+        if (error) {
+          console.log("callback.html: Sending error message.");
+          window.opener.postMessage({
+            type: 'spotifyAuthError',
+            error: error,
+            state: state
+          }, window.location.origin); // ターゲットオリジンは callback.html のオリジン
+        } else if (code) {
+          console.log("callback.html: Sending success message with code.");
+          window.opener.postMessage({
+            type: 'spotifyAuthSuccess',
+            code: code, // 認証コードを送信
+            state: state
+          }, window.location.origin); // ターゲットオリジンは callback.html のオリジン
+        }
+        window.close(); // 一時的にコメントアウトしてウィンドウが閉じないようにする
+        console.log("callback.html: Message sent (or attempted). Window will not close automatically for debugging.");
+      }
+    };
+  </script>
+</head>
+<body>
+  <p>Processing Spotify authentication, please wait...</p>
+</body>
+</html>
