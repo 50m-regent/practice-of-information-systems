@@ -1,9 +1,9 @@
 import { LinkButton } from "./components/test/link";
 import { Navbar } from './components/Navbar';
 import { useState, useEffect} from "react";
-import axios from "axios";
+// import axios from "axios"; // PKCEではトークン交換にaxiosは不要になりますが、他のAPI呼び出しで使用している場合は残してください。
 import { MusicItemIcon } from "./components/musicItemIcon";
-import { generateRandomString } from "./utils/stringUtils";
+import { generateRandomString } from "./utils/stringUtils"; // 既存のユーティリティ
 
 type DysplayMusic ={
   musicID : number;
@@ -14,9 +14,37 @@ type DysplayMusic ={
  const MAX_MUSIC_NUM = 5; //表示する音楽の最大数
 
 const CLIENT_ID = "826a4a6ab717454aa24268036207a028";
-const REDIRECT_URI = "http://127.0.0.1:5173/callback.html"; // ← vite起動URLに合わせて変更(vite.config.tsで5173番のポートを指定)
-const SCOPES = ["user-top-read", "user-read-recently-played", "user-library-read", "playlist-read-private", "playlist-read-collaborative", "user-follow-read"]
-const AUTH_URL = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${SCOPES.join("%20")}`;
+const REDIRECT_URI = "http://127.0.0.1:5173/callback.html";
+const SCOPES = ["user-top-read", "user-read-recently-played", "user-library-read", "playlist-read-private", "playlist-read-collaborative", "user-follow-read"];
+
+// PKCE用のヘルパー関数
+/**
+ * Generates a cryptographically secure random string for PKCE code_verifier.
+ */
+function generateCodeVerifier(length: number = 128): string {
+  const possibleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  let randomString = '';
+  const randomValues = new Uint8Array(length);
+  window.crypto.getRandomValues(randomValues);
+  for (let i = 0; i < length; i++) {
+    randomString += possibleChars.charAt(randomValues[i] % possibleChars.length);
+  }
+  return randomString;
+}
+
+/**
+ * Generates a code_challenge from a code_verifier.
+ */
+async function generateCodeChallenge(verifier: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await window.crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
 
 export const Home = () => {
   const title: string = "ホーム画面";
@@ -26,11 +54,27 @@ export const Home = () => {
   const [spotifyAccessToken, setSpotifyAccessToken] = useState<string | null>(null);
   const [spotifyTokenExpiresAt, setSpotifyTokenExpiresAt] = useState<number | null>(null);
 
-  const openSpotifyLogin = () => {
-    const state = generateRandomString(16);
+  const openSpotifyLogin = async () => {
+    const state = generateRandomString(16); // CSRF対策のstate
+    const codeVerifier = generateCodeVerifier(); // PKCEのcode_verifier
+
     sessionStorage.setItem('spotify_auth_state', state);
-    const authUrlWithState = `${AUTH_URL}&state=${state}`;
-    window.open(authUrlWithState, "Spotify Login", "width=400,height=600");
+    sessionStorage.setItem('spotify_pkce_code_verifier', codeVerifier);
+
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+    const authUrlParams = new URLSearchParams({
+      client_id: CLIENT_ID,
+      response_type: 'code',
+      redirect_uri: REDIRECT_URI,
+      scope: SCOPES.join(' '), // スペース区切り
+      state: state,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+    });
+
+    const authUrl = `https://accounts.spotify.com/authorize?${authUrlParams.toString()}`;
+    window.open(authUrl, "Spotify Login", "width=400,height=600");
   };
 
   useEffect(() => {
@@ -53,57 +97,92 @@ export const Home = () => {
     }
 
     // Spotify認証コールバックからのメッセージを処理
-    const handleAuthMessage = (event: MessageEvent) => {
+    const handleAuthMessage = async (event: MessageEvent) => {
       console.log('handleAuthMessage triggered. Event origin:', event.origin, 'Expected origin:', window.location.origin, 'Event data:', event.data);
+      // callback.htmlが提供されるオリジンを正確に指定する
+      // viteのデフォルト開発サーバーであれば window.location.origin で問題ないはず
       if (event.origin !== window.location.origin) {
         console.warn("Message from unknown origin:", event.origin);
         return;
       }
 
-      // callback.htmlからは code と state が送られてくる想定
-      console.log('Received message from callback.html:', event.data);
       const { type, code, error, state: receivedState } = event.data;
       const storedState = sessionStorage.getItem('spotify_auth_state');
-      sessionStorage.removeItem('spotify_auth_state'); // 一度使ったら削除
+      sessionStorage.removeItem('spotify_auth_state'); // 検証後は削除
 
       if (receivedState !== storedState) {
-        console.error('Spotify Auth Error: State mismatch.');
-        // TODO: ユーザーにエラーを通知 (例: エラーステートを設定してUIに表示)
+        console.error('Spotify Auth Error: State mismatch. Possible CSRF attack.');
+        // TODO: ユーザーにエラーを通知
         return;
       }
 
       if (type === 'spotifyAuthSuccess' && code) {
         console.log('Spotify Authorization Code received:', code);
-        // バックエンドに認証コードを送信してアクセストークンを取得
-        axios.post('http://localhost:8080/api/spotify/exchange-token', { code: code }) // バックエンドのエンドポイントは適宜変更
-          .then(response => {
-            const { access_token, expires_in } = response.data;
-            if (access_token && expires_in) {
-              const expiresAt = Date.now() + (expires_in * 1000);
-              setSpotifyAccessToken(access_token);
-              setSpotifyTokenExpiresAt(expiresAt);
-              localStorage.setItem('spotify_access_token', access_token);
-              localStorage.setItem('spotify_token_expires_at', expiresAt.toString());
-              console.log('Spotify Access Token obtained from backend:', access_token);
-            } else {
-              console.error('Failed to get access token from backend:', response.data.error || 'Unknown error');
-            }
-          })
-          .catch(err => {
-            console.error('Error exchanging code for token:', err.response ? err.response.data : err.message);
-            // TODO: ユーザーにエラーを通知
+        const storedCodeVerifier = sessionStorage.getItem('spotify_pkce_code_verifier');
+        sessionStorage.removeItem('spotify_pkce_code_verifier'); // 使用後は削除
+
+        if (!storedCodeVerifier) {
+          console.error('Spotify Auth Error: Code verifier not found in session storage.');
+          // TODO: ユーザーにエラーを通知
+          return;
+        }
+
+        try {
+          const tokenRequestBody = new URLSearchParams({
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: REDIRECT_URI,
+            client_id: CLIENT_ID,
+            code_verifier: storedCodeVerifier,
           });
+
+          const response = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: tokenRequestBody.toString(),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Token exchange failed: ${errorData.error_description || response.statusText}`);
+          }
+
+          const tokenData = await response.json();
+          const { access_token, expires_in, refresh_token } = tokenData; // refresh_tokenも取得可能
+
+          if (access_token && expires_in) {
+            const expiresAt = Date.now() + (expires_in * 1000);
+            setSpotifyAccessToken(access_token);
+            setSpotifyTokenExpiresAt(expiresAt);
+            localStorage.setItem('spotify_access_token', access_token);
+            localStorage.setItem('spotify_token_expires_at', expiresAt.toString());
+            if (refresh_token) {
+              localStorage.setItem('spotify_refresh_token', refresh_token); // リフレッシュトークンも保存
+              console.log('Spotify Refresh Token obtained and stored.');
+            }
+            console.log('Spotify Access Token obtained directly from Spotify:', access_token);
+          } else {
+            console.error('Failed to get access token from Spotify:', tokenData.error || 'Unknown error');
+          }
+        } catch (err: any) {
+          console.error('Error exchanging code for token with Spotify:', err.message || err);
+          // TODO: ユーザーにエラーを通知
+        }
+
       } else if (type === 'spotifyAuthError') {
-        console.error('Spotify Auth Error:', error);
+        console.error('Spotify Auth Error from callback:', error);
         // TODO: ユーザーにエラーを通知
       }
     };
 
     window.addEventListener('message', handleAuthMessage);
-    console.log("home.tsx: Event listener for 'message' added."); // ★リスナー登録確認ログ
+    console.log("home.tsx: Event listener for 'message' added.");
 
     (
       async () => {
+        // ダミーデータや既存のデータ取得ロジックはそのまま
         const favoData = {data:[
           {
             musicID: 1,
@@ -181,21 +260,21 @@ export const Home = () => {
 
     return () => {
       window.removeEventListener('message', handleAuthMessage);
+      console.log("home.tsx: Event listener for 'message' removed.");
     };
-    },[]);
+    },[]); // 依存配列は空のまま（初回マウント時のみ実行）
 
   return (
     <>
     <div className="Home">
       ヘッダー
-    {/* <LinkButton text="Spotify認証画面/Auth" link="/auth" /> */}
     <button onClick={openSpotifyLogin}>Spotifyと連携</button>
-      <h3>クイックアクセス</h3>
       {spotifyAccessToken ? (
         <p style={{ color: 'green', fontSize: 'small' }}>Spotify連携済み (有効期限: {spotifyTokenExpiresAt ? new Date(spotifyTokenExpiresAt).toLocaleString() : 'N/A'})</p>
       ) : (
         <p style={{ color: 'red', fontSize: 'small' }}>Spotify未連携</p>
       )}
+      <h3>クイックアクセス</h3>
         {
           quickAccess.map((music) => (
             <div key={music.musicID}>
