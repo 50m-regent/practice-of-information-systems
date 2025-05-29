@@ -17,7 +17,7 @@ export const Recommend = () => {
     useEffect(() => {
         (
             async () => {            
-                // const recoData = await axios.get("http://localhost:8080/recommend?");
+                // const recoData = await axios.get("http://localhost:8080/recommend");
                 const recoData= {data:[
               {
                 musicID: 5,

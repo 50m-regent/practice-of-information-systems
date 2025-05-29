@@ -46,8 +46,9 @@ export const Favorite = () => {
               },
               
             ]}
-            setFavoriteMusic(favoData.data);            
-            }
+            setFavoriteMusic(favoData.data); 
+      
+          }
         )()
         },[])
 
