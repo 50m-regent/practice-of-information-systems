@@ -625,7 +625,7 @@ func history_api(r *gin.Engine, db *sql.DB) {
 
 func difficulty_settings_api(r *gin.Engine, db *sql.DB) {
 	// Set/Update difficulty settings for a music
-	r.PUT("/music_difficulty_settings", func(ctx *gin.Context) {
+	r.PUT("/music/:music_id/difficulty-settings", func(ctx *gin.Context) {
 		musicIDStr := ctx.Param("music_id")
 		musicID, err := strconv.Atoi(musicIDStr)
 		if err != nil || musicID <= 0 {
@@ -648,7 +648,7 @@ func difficulty_settings_api(r *gin.Engine, db *sql.DB) {
 	})
 
 	// Get difficulty settings for a music
-	r.GET("/music_difficulty_settings", func(ctx *gin.Context) {
+	r.GET("/music/:music_id/difficulty-settings", func(ctx *gin.Context) {
 		musicIDStr := ctx.Param("music_id")
 		musicID, err := strconv.Atoi(musicIDStr)
 		if err != nil || musicID <= 0 {
