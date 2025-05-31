@@ -1,14 +1,18 @@
 .musicItemIcon {
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7); /* 既存の影 */
+  transition: transform 0.2s ease, box-shadow 0.2s ease; /* transitionにbox-shadowを追加 */
+  cursor: pointer; /* ホバー可能であることを示すため */
 }
 
 .musicItemIcon:hover {
-  transform: scale(1.02);
+  /* へこむような動作 */
+  transform: translateY(2px) scale(0.98); /* 少し下に移動し、わずかに縮小 */
+  box-shadow: 0px 0px 0px, inset, rgba(0, 0, 0, 0.7); /* 影を小さく、濃くすることでへこんだように見せる */
 }
 
+/* 既存のCSSはそのまま */
 .imageContainer {
   position: relative;
 }
@@ -26,7 +30,7 @@
   width: 100%;
   padding: 8px;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
-  color: white;
+  color: white; /* テキストオーバーレイの文字色は白の方が見やすいかもしれません */
 }
 
 .title {
@@ -84,4 +88,3 @@
 }
 
 .resizeimage img { width: 100%; } */
-

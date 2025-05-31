@@ -55,9 +55,6 @@ export const Home = () => {
   const [spotifyAccessToken, setSpotifyAccessToken] = useState<string | null>(null);
   const [spotifyTokenExpiresAt, setSpotifyTokenExpiresAt] = useState<number | null>(null);
 
-  const headerHeight = '50px'
-  const navbarHeight = '50px'
-
   const openSpotifyLogin = async () => {
     const state = generateRandomString(16); // CSRF対策のstate
     const codeVerifier = generateCodeVerifier(); // PKCEのcode_verifier
