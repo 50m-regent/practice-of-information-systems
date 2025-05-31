@@ -1,12 +1,69 @@
-/* .Favorite {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 16px;
-  padding: 16px;
-} */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* ページ全体のスクロールは禁止 */
+}
+
 .Favorite {
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* 親要素 (body, #root) の高さを引き継ぐ */
+  background-color: #ddefff;
+}
+
+.Favorite .header {
+    width: 100%;
+    height: 50px;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 0 10px;
+    box-sizing: border-box;
+    font-weight: bold;
+    position: fixed;
+    justify-content: flex-start;
+    top: 0;
+    z-index: 1;
+    background-color: #93B8DC;
+    color: #fff;
+}
+
+.Favorite .header-left-content {
+  display: flex;
+  align-items: center; /* アイコンとテキストを垂直方向中央に */
+  gap: 8px; /* アイコンとテキストの間のスペース */
+}
+
+/* LinkButton内のアイコン画像に対するスタイル（必要に応じて） */
+.Favorite .header-left-content .nav-icon img {
+  display: block; /* 画像下の余分なスペースを防ぐ */
+}
+
+.Favorite .main {
+  flex-grow: 1; /* 利用可能な残りのスペースをすべて占める */
+  overflow-y: auto; /* コンテンツがはみ出た場合に縦スクロールを許可 */
+  padding-top: 50px; /* 固定ヘッダーの高さ分 */
+  padding-bottom: 50px; /* 固定フッター（Navbar）の高さ分 */
+  padding-left: 16px; /* メインコンテンツの左右パディング */
+  padding-right: 16px;
+  width: 100vw;
+  box-sizing: border-box;
+}
+
+.Favorite .main::-webkit-scrollbar {
+  display: none; /* メインコンテンツのスクロールバーを非表示にする場合 */
+}
+
+.Favorite .footer {
+  height: 50px; /* Navbarの高さに合わせる */
+  flex-shrink: 0; /* フッターが縮まないようにする */
+  /* 必要であれば背景色などを指定 */
+}
+
+.Favorite .main .music-grid-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); /* 横並びで可変幅 */
-  gap: 16px;
-  padding: 16px;
+  grid-template-columns: repeat(2, 1fr); /* 横に2列、各列は利用可能なスペースを均等に分割 */
+  gap: 16px; /* グリッドアイテム間の隙間 */
+  padding: 16px 0; /* グリッドコンテナの上下にパディング（左右はmainで設定済み） */
 }

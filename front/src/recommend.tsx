@@ -76,7 +76,6 @@ export const Recommend = () => {
             />
             <span>おすすめの楽曲</span>
           </div>
-          {/* <LinkButton text="Spotify認証/Auth" link="/auth" /> */}
         </div>
 
         {/* メイン */}
@@ -96,7 +95,7 @@ export const Recommend = () => {
           </div>
         </div>
 
-        <div className="footer">"
+        <div className="footer">
           <Navbar />
         </div>
       </div>
