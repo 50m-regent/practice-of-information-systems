@@ -4,6 +4,7 @@ import { useState, useEffect} from "react";
 // import axios from "axios"; // PKCEではトークン交換にaxiosは不要になりますが、他のAPI呼び出しで使用している場合は残してください。
 import { MusicItemIcon } from "./components/musicItemIcon";
 import { generateRandomString } from "./utils/stringUtils"; // 既存のユーティリティ
+import "./css/Home.css";
 
 type DysplayMusic ={
   musicID : number;
@@ -53,6 +54,9 @@ export const Home = () => {
   const [quickAccess, setQuickAccess] = useState<DysplayMusic[]>([]);
   const [spotifyAccessToken, setSpotifyAccessToken] = useState<string | null>(null);
   const [spotifyTokenExpiresAt, setSpotifyTokenExpiresAt] = useState<number | null>(null);
+
+  const headerHeight = '50px'
+  const navbarHeight = '50px'
 
   const openSpotifyLogin = async () => {
     const state = generateRandomString(16); // CSRF対策のstate
@@ -265,58 +269,93 @@ export const Home = () => {
     },[]); // 依存配列は空のまま（初回マウント時のみ実行）
 
   return (
-    <>
     <div className="Home">
-      ヘッダー
-    <button onClick={openSpotifyLogin}>Spotifyと連携</button>
+      {/* ヘッダー */}
+      <div className="header">
+        {/* ヘッダーの左側のコンテンツ */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{
+            width: '30px',
+            height: '30px',
+            backgroundColor: '#A0A0A0', // ダミーのアイコン色
+            borderRadius: '5px',
+            marginRight: '10px',
+          }}></div>
+          <span>NAME</span> {/* 画像の「NAME」部分 */}
+        </div>
+        {/* ヘッダーの右側のコンテンツ */}
+        <div>
+          <img
+            className="spotify-icon-header"
+            src="/Primary_Logo_White_RGB.svg"
+            alt="Spotify Icon"
+            style={{ width: '30px', height: '30px' }}
+            onClick={openSpotifyLogin}
+          />
+        </div>
+      </div>
+
+    {/* <button onClick={openSpotifyLogin}>Spotifyと連携</button>
       {spotifyAccessToken ? (
         <p style={{ color: 'green', fontSize: 'small' }}>Spotify連携済み (有効期限: {spotifyTokenExpiresAt ? new Date(spotifyTokenExpiresAt).toLocaleString() : 'N/A'})</p>
       ) : (
         <p style={{ color: 'red', fontSize: 'small' }}>Spotify未連携</p>
-      )}
-      <h3>クイックアクセス</h3>
-        {
-          quickAccess.map((music) => (
-            <div key={music.musicID}>
+      )} */}
+
+      {/* メイン */}
+      <div className="main">
+        <b style={{paddingLeft: '10px'}}>クイックアクセス</b>
+        <div className="horizontal-scroll-container">
+          {
+            quickAccess.map((music) => (
               <MusicItemIcon
+                key={music.musicID}
                 musicID={music.musicID}
                 title={music.title}
                 artist={music.artist}
                 thumbnail={music.thumbnail}
               />
-            </div>
-          ))
-        }
-      <h3>お気に入り</h3>
-        <LinkButton text="すべて見る" link="/favorite" />
-        {
-          favoriteMusic.map((music) => (
-            <div key={music.musicID}>
+            ))
+          }
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 10px' }}>
+          <b>お気に入り</b>
+          <LinkButton text="すべて見る" link="/favorite" />
+        </div>
+        <div className="horizontal-scroll-container">
+          {
+            favoriteMusic.map((music) => (
               <MusicItemIcon
+                key={music.musicID}
                 musicID={music.musicID}
                 title={music.title}
                 artist={music.artist}
                 thumbnail={music.thumbnail}
               />
-            </div>
-          ))
-        }
-        <h3>おすすめ</h3>
-        <LinkButton text="すべて見る" link="/recommend" />
-        {
-          recommendMusic.map((music) => (
-            <div key={music.musicID}>
+            ))
+          }
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 10px' }}>
+          <b>おすすめ</b>
+          <LinkButton text="すべて見る" link="/recommend" />
+        </div>
+        <div className="horizontal-scroll-container">
+          {
+            recommendMusic.map((music) => (
               <MusicItemIcon
+                key={music.musicID}
                 musicID={music.musicID}
                 title={music.title}
                 artist={music.artist}
                 thumbnail={music.thumbnail}
               />
-            </div>
-          ))
-        }
-    <Navbar />
+            ))
+          }
+        </div>
+      </div>
+      <div className="footer">
+        <Navbar />
+      </div>
     </div>
-    </>
   );
 }
