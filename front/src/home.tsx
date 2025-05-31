@@ -1,4 +1,4 @@
-import { LinkButton } from "./components/test/link";
+import { LinkButton } from "./components/link";
 import { Navbar } from './components/Navbar';
 import { useState, useEffect} from "react";
 // import axios from "axios"; // PKCEではトークン交換にaxiosは不要になりますが、他のAPI呼び出しで使用している場合は残してください。
@@ -281,7 +281,7 @@ export const Home = () => {
           <span>NAME</span> {/* 画像の「NAME」部分 */}
         </div>
         {/* ヘッダーの右側のコンテンツ */}
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <img
             className="spotify-icon-header"
             src="/Primary_Logo_White_RGB.svg"
@@ -315,7 +315,7 @@ export const Home = () => {
             ))
           }
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 10px' }}>
+        <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 10px' }}>
           <b>お気に入り</b>
           <LinkButton text="すべて見る" link="/favorite" />
         </div>
@@ -332,9 +332,9 @@ export const Home = () => {
             ))
           }
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 10px' }}>
+        <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 10px' }}>
           <b>おすすめ</b>
-          <LinkButton text="すべて見る" link="/recommend" />
+          <LinkButton text="すべて見る" link="/recommend"/>
         </div>
         <div className="horizontal-scroll-container">
           {

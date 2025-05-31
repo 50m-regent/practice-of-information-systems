@@ -51,7 +51,7 @@ html, body, #root {
   /* overflow: hidden; は #root に設定したので、ここでは不要 */
 }
 
-.header {
+.Home .header {
     width: 100%;
     height: 50px;
     display: flex;
@@ -67,26 +67,35 @@ html, body, #root {
     color: #fff;
 }
 
-.main {
+.Home .main {
   flex-grow: 1; /* 残りのスペースを全て占有する */
   overflow-y: auto; /* 縦方向のコンテンツがはみ出たらスクロールバーを表示 */
   -webkit-overflow-scrolling: touch; /* iOSでのスクロールをスムーズにする（任意） */
   padding-top: 60px; /* ヘッダーの高さ50pxから10px分 */
   /* padding-bottom は Navbar との兼ね合いで調整が必要になる場合があります */
   box-sizing: border-box; /* padding を含めて幅を計算 */
-  width: 100%;
+  width: 100vw;
   background-color: #ddefff;
   color: black;
 }
 
-.main::-webkit-scrollbar {
+.Home .main::-webkit-scrollbar {
   display: none;
 }
 
-.footer {
+.Home .footer {
   /* position: fixed; はそのまま */
   /* width: 100%; はそのまま */
   /* height: headerHeight; はそのまま */
   flex-shrink: 0; /* ヘッダーの高さは固定し、縮まないようにする */
   height: 50px;
+}
+
+/* ホーム画面のセクションヘッダー内の「すべて見る」リンクのスタイル */
+.Home .main .section-header .LinkButton .nav-item {
+  color: #5D8DBA; /* 文字色を青に設定 */
+}
+
+.Home .main .section-header .LinkButton .nav-item:hover {
+  text-decoration: underline; /* ホバー時に下線を表示（任意） */
 }
