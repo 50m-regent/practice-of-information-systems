@@ -67,6 +67,19 @@ html, body, #root {
     color: #fff;
 }
 
+.app-title {
+  font-family: cursive;
+  /* 優先順位で指定し、見つからない場合は次のフォントが試されます */
+  font-family: 'Arial Rounded MT Bold', 'Helvetica Rounded', 'Hiragino Maru Gothic ProN', 'メイリオ', cursive, sans-serif;
+  font-size: 22px;
+  color: white;
+  /* text-shadow: 1px 1px 0px black, 2px 2px 0px rgba(0,0,0,0.2); */
+  font-weight: bold;
+  /* -webkit-text-stroke: 1px black;
+  text-stroke: 1px black;
+  paint-order: stroke; */
+}
+
 .Home .main {
   flex-grow: 1; /* 残りのスペースを全て占有する */
   overflow-y: auto; /* 縦方向のコンテンツがはみ出たらスクロールバーを表示 */

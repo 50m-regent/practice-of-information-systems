@@ -271,14 +271,14 @@ export const Home = () => {
       <div className="header">
         {/* ヘッダーの左側のコンテンツ */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <div style={{
+          {/* <div style={{
             width: '30px',
             height: '30px',
             backgroundColor: '#A0A0A0', // ダミーのアイコン色
             borderRadius: '5px',
             marginRight: '10px',
-          }}></div>
-          <span>NAME</span> {/* 画像の「NAME」部分 */}
+          }}></div> */}
+          <span className="app-title">やさシート</span> {/* 画像の「NAME」部分 */}
         </div>
         {/* ヘッダーの右側のコンテンツ */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
