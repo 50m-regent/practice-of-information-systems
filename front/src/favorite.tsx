@@ -64,7 +64,7 @@ export const Favorite = () => {
                 <IoIosArrowBack />
               }
             />
-            <span>おすすめの楽曲</span>
+            <span>お気に入りの楽曲</span>
           </div>
         </div>
 

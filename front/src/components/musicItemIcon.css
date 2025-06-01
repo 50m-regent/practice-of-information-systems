@@ -8,8 +8,11 @@
 
 .musicItemIcon:hover {
   /* へこむような動作 */
-  transform: translateY(2px) scale(0.98); /* 少し下に移動し、わずかに縮小 */
-  box-shadow: 0px 0px 0px, inset, rgba(0, 0, 0, 0.7); /* 影を小さく、濃くすることでへこんだように見せる */
+  /* 少し下に移動し、わずかに縮小 */
+  transform: translateY(2px) scale(0.98);
+  /* 影を小さく、濃くすることでへこんだように見せる */
+  box-shadow: 0px 0px 0px, inset, rgba(0, 0, 0, 0.7);
+  border-color: transparent;
 }
 
 /* 既存のCSSはそのまま */

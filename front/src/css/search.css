@@ -1,0 +1,192 @@
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* ページ全体のスクロールは禁止 */
+}
+
+.Search {
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* 親要素 (body, #root) の高さを引き継ぐ */
+  background-color: #fff;
+}
+
+.Search .header {
+    width: 100%;
+    height: 50px;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 0 10px;
+    box-sizing: border-box;
+    font-weight: bold;
+    position: fixed;
+    justify-content: center;
+    align-items: center;
+    top: 0;
+    z-index: 1;
+    background-color: #93B8DC;
+    color: #fff;
+}
+
+.Search .header input[type="search"] {
+  /* 基本的なスタイリング */
+  width: 100%; /* 親要素の幅いっぱいに広げる */
+  padding: 5px 15px; /* 上下左右のパディングで入力エリアのサイズを調整 */
+  border: 1px solid #93B8DC; /* ボーダーの色（画像から推測される薄い青） */
+  border-radius: 20px; /* 角丸の度合い。高さを半分にするとカプセル型に */
+  background-color: #E8F2FF;
+  font-size: 16px; /* フォントサイズ */
+  color: #333; /* テキストの色 */
+  outline: none; /* フォーカス時のアウトラインを消す（任意） */
+  box-sizing: border-box; /* paddingとborderをwidth/heightに含める */
+
+  /* プレースホルダーのスタイル */
+  &::placeholder { /* SCSS/Sass記法の場合。通常のCSSでは input::placeholder */
+    color: gray; /* プレースホルダーの色（画像から推測） */
+    opacity: 1; /* Firefoxなどでopacityがデフォルトで低い場合があるため */
+  }
+
+  /* フォーカス時のスタイル（任意） */
+  &:focus {
+    border-color: #5b9bd5; /* フォーカス時にボーダーを少し濃くする */
+    box-shadow: 0 0 5px rgba(91, 155, 213, 0.5); /* フォーカス時に影をつける */
+  }
+}
+
+/* WebKit系ブラウザの検索入力欄のクリアボタン（バツマーク）のスタイル */
+.Search .header input[type="search"]::-webkit-search-cancel-button {
+  /* filterプロパティを使って色相を調整します */
+  /* 例: アイコンを赤っぽくする場合 */
+  filter: brightness(0) saturate(100%) invert(25%) sepia(70%) saturate(6000%) hue-rotate(350deg) brightness(100%) contrast(100%);
+  cursor: pointer; /* マウスカーソルをポインターに */
+}
+
+.header input[type="search"]::placeholder {
+  color: gray;
+  opacity: 1;
+}
+
+.Search .main {
+  flex-grow: 1; /* 利用可能な残りのスペースをすべて占める */
+  overflow-y: auto; /* コンテンツがはみ出た場合に縦スクロールを許可 */
+  padding-top: 50px; /* 固定ヘッダーの高さ分 */
+  padding-bottom: 50px; /* 固定フッター（Navbar）の高さ分 */
+
+  width: 100vw;
+  top: 50px;
+  box-sizing: border-box;
+  color: black;
+  background-color: #E8F2FF;
+}
+
+.Search .main::-webkit-scrollbar {
+  display: none; /* メインコンテンツのスクロールバーを非表示にする場合 */
+}
+
+.Search .main .search_result {
+  width: 100%;
+  overflow-y: auto;
+  padding-left: 16px; /* メインコンテンツの左右パディング */
+  padding-right: 16px;
+  box-sizing: border-box;
+}
+
+.Search .main .search_result .music-grid-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 横に2列、各列は利用可能なスペースを均等に分割 */
+  gap: 16px; /* グリッドアイテム間の隙間 */
+  padding: 16px 0; /* グリッドコンテナの上下にパディング（左右はmainで設定済み） */
+}
+
+.Search .recentSearch {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.Search .diffSearch {
+  padding-bottom: 10px;
+}
+
+.Search .difficulty-button-container > div {
+  margin-bottom: 5px; /* ボタン間の余白 */
+  padding-left: 10px;  /* ボタンの左側に余白を追加 */
+  padding-right: 10px; /* ボタンの右側に余白を追加 */
+  box-sizing: border-box; /* paddingを含めて幅を計算 */
+}
+
+.Search .difficulty-button-container button {
+  display: block; /* ボタンをブロック要素にして幅いっぱいに広げる場合 */
+  width: 100%;
+  padding: 2px 10px; /* 上下1px、左右10pxのパディング */
+  box-sizing: border-box;
+  font-size: 16px;
+  text-align: center; /* ボタン内のテキストを中央揃えに */
+  background-color: #5D8DBA;
+  box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.3);
+  border-radius: 16px;
+}
+
+.Search .difficulty-button-container button:hover {
+  box-shadow: 2px 2px 2px inset rgba(0, 0, 0, 0.5);
+  border-color: transparent;
+}
+
+.Search .difficulty-button-container button:focus,
+.Search .difficulty-button-container button:focus-visible {
+  outline: none; /* フォーカス時の枠線を消す */
+}
+
+.Search .genreSearch {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.Search .genre-grid-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 横に3列、各列は利用可能なスペースを均等に分割 */
+  gap: 4px; /* グリッドアイテム間の隙間 */
+  padding: 1px 10px;
+}
+
+.Search .genre-grid-container button {
+  display: block;
+  width: 100%;
+  /* border-color: transparent; */
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: #E8F2FF;
+  color: black;
+  box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.3);
+  padding: 10px 10px;
+  position: relative;
+  overflow: hidden;
+  position: relative;
+  border-radius: 5px 10px 10px 5px;
+}
+
+.Search .genre-grid-container button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+  background-color: var(--line-color);
+}
+
+.Search .genre-grid-container button:hover {
+  box-shadow: 2px 2px 2px inset rgba(0, 0, 0, 0.5);
+  border-color: transparent;
+}
+
+.Search .genre-grid-container button:focus,
+.Search .genre-grid-container button:focus-visible {
+  outline: none; /* フォーカス時の枠線を消す */
+}
+
+.Search .footer {
+  height: 50px; /* Navbarの高さに合わせる */
+  flex-shrink: 0; /* フッターが縮まないようにする */
+  /* 必要であれば背景色などを指定 */
+}
