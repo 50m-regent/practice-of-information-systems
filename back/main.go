@@ -59,6 +59,8 @@ func main() {
 	proficiency_recommend_api(r, db)
 
 	favorites_api(r, db)
+	history_api(r, db)
+	difficulty_settings_api(r, db)
 
 	r.Run(":8080")
 
@@ -201,6 +203,18 @@ func setupDBSchema(db *sql.DB) error {
 		return err
 	}
 
+	// SearchHistory table
+	cmd = `CREATE TABLE IF NOT EXISTS SearchHistory (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		music_id INTEGER NOT NULL,
+		title TEXT NOT NULL,
+		artist TEXT,
+		thumbnail TEXT,
+		searched_at DATETIME NOT NULL
+	)`
+	if _, err := db.Exec(cmd); err != nil {
+		return fmt.Errorf("failed to create SearchHistory table: %w", err)
+	}
 	return nil
 }
 
@@ -253,6 +267,12 @@ func search_api(r *gin.Engine, db *sql.DB) {
 			}
 			result = append(result, dm)
 		}
+		// Add search results to history
+		if err := AddSearchEntriesToHistory(db, result); err != nil {
+			// Log error but don't fail the search request itself
+			log.Printf("Warning: Failed to add entries to search history: %v", err)
+		}
+
 		ctx.IndentedJSON(http.StatusOK, result)
 	})
 }
@@ -582,5 +602,66 @@ func favorites_api(r *gin.Engine, db *sql.DB) {
 			return
 		}
 		ctx.JSON(http.StatusOK, gin.H{"message": "Favorites set successfully"})
+	})
+}
+
+func history_api(r *gin.Engine, db *sql.DB) {
+	// Get recent search history
+	r.GET("/history/searches", func(ctx *gin.Context) {
+		limitStr := ctx.DefaultQuery("limit", strconv.Itoa(defaultHistoryLimit)) // Use constant from history.go
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 {
+			limit = defaultHistoryLimit // Use constant from history.go
+		}
+
+		history, err := GetSearchHistory(db, limit)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get search history: " + err.Error()})
+			return
+		}
+		ctx.JSON(http.StatusOK, history)
+	})
+}
+
+func difficulty_settings_api(r *gin.Engine, db *sql.DB) {
+	// Set/Update difficulty settings for a music
+	r.PUT("/music/:music_id/difficulty-settings", func(ctx *gin.Context) {
+		musicIDStr := ctx.Param("music_id")
+		musicID, err := strconv.Atoi(musicIDStr)
+		if err != nil || musicID <= 0 {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid music_id in path"})
+			return
+		}
+
+		var settings []DifficultySetting
+		if err := ctx.BindJSON(&settings); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+			return
+		}
+
+		if err := SetUserMusicDifficultySettings(db, musicID, settings); err != nil {
+			log.Printf("Error setting difficulty settings for music_id %d: %v", musicID, err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set difficulty settings"})
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Difficulty settings for music_id %d updated successfully", musicID)})
+	})
+
+	// Get difficulty settings for a music
+	r.GET("/music/:music_id/difficulty-settings", func(ctx *gin.Context) {
+		musicIDStr := ctx.Param("music_id")
+		musicID, err := strconv.Atoi(musicIDStr)
+		if err != nil || musicID <= 0 {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid music_id in path"})
+			return
+		}
+
+		settings, err := GetUserMusicDifficultySettings(db, musicID)
+		if err != nil {
+			log.Printf("Error getting difficulty settings for music_id %d: %v", musicID, err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get difficulty settings"})
+			return
+		}
+		ctx.JSON(http.StatusOK, settings)
 	})
 }
