@@ -1,0 +1,10 @@
+/* LinkButton.css または関連するCSSファイル */
+
+.LinkButton .nav-item {
+  display: flex;
+  align-items: center; /* 垂直方向の中央揃え */
+  justify-content: center; /* 水平方向の中央揃え（アイコンとテキストをまとめて中央にしたい場合）*/
+  /* 必要に応じて他のスタイルを追加 */
+  text-decoration: none; /* 下線を消す場合 */
+  color: inherit; /* テキストの色を親から継承する場合 */
+}

@@ -1,8 +1,11 @@
-import { LinkButton } from "./components/test/link";
+import { LinkButton } from "./components/link";
 import { Navbar } from './components/Navbar';
 import { useState, useEffect} from "react";
 import axios from "axios";
-import { MusicItemList } from "./components/musicItemList";
+import { MusicItemIcon } from "./components/musicItemIcon";
+import  "./css/recommend.css"
+import { IoIosArrowBack } from 'react-icons/io';
+
 type DysplayMusic ={
   musicID : number;
   title : string;
@@ -13,11 +16,11 @@ type DysplayMusic ={
 export const Recommend = () => {
     const title: string = "推薦画面";
     const [recommendMusic, setRecommendMusic] = useState<DysplayMusic[]>([]);
-    
+
     useEffect(() => {
         (
-            async () => {            
-                // const recoData = await axios.get("http://localhost:8080/recommend");
+            async () => {
+                // const recoData = await axios.get("http://localhost:8080/recommend?");
                 const recoData= {data:[
               {
                 musicID: 5,
@@ -56,30 +59,45 @@ export const Recommend = () => {
                 thumbnail: "https://via.placeholder.com/100x100?text=Reco5",
               },
             ]}
-            setRecommendMusic(recoData.data);    
+            setRecommendMusic(recoData.data);
             }
         )()
         },[])
     return (
-        <>
-        <div className="Recommend">
-        <h3>ヘッダー</h3>
-        <LinkButton text="Spotify認証/Auth" link="/auth" />
-        <h3>お気に入り</h3>
-        {
-            recommendMusic.map((music) => (
-            <div key={music.musicID}>
-                <MusicItemList
-                musicID={music.musicID}
-                title={music.title}
-                artist={music.artist}
-                thumbnail={music.thumbnail}
-                />
-            </div>
-            ))
-        }
+      <div className="Recommend">
+        {/* ヘッダー */}
+        <div className="header">
+          <div className="header-left-content" style={{ color: "black"}}>
+            <LinkButton
+              link="/home"
+              icon={
+                <IoIosArrowBack />
+              }
+            />
+            <span>おすすめの楽曲</span>
+          </div>
         </div>
-        <Navbar />
-        </>
+
+        {/* メイン */}
+        <div className="main">
+          <div className="music-grid-container">
+            {
+                recommendMusic.map((music) => (
+                    <MusicItemIcon
+                    key={music.musicID}
+                    musicID={music.musicID}
+                    title={music.title}
+                    artist={music.artist}
+                    thumbnail={music.thumbnail}
+                    />
+                ))
+            }
+          </div>
+        </div>
+
+        <div className="footer">
+          <Navbar />
+        </div>
+      </div>
     );
 }

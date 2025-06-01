@@ -1,9 +1,11 @@
-import { LinkButton } from "./components/test/link";
+import { LinkButton } from "./components/link";
 import { Navbar } from './components/Navbar';
 import { useState, useEffect} from "react";
 import axios from "axios";
 import { MusicItemIcon } from "./components/musicItemIcon";
 import "./css/favorite.css";
+import { IoIosArrowBack } from 'react-icons/io';
+
 type DysplayMusic ={
   musicID : number;
   title : string;
@@ -14,7 +16,7 @@ type DysplayMusic ={
 export const Favorite = () => {
     const title: string = "ホーム画面";
       const [favoriteMusic, setFavoriteMusic] = useState<DysplayMusic[]>([]);
-      
+
       useEffect(() => {
           (
               async () => {
@@ -44,34 +46,49 @@ export const Favorite = () => {
                 artist: "Artist D",
                 thumbnail: "https://via.placeholder.com/100x100?text=Favo4",
               },
-              
+
             ]}
-            setFavoriteMusic(favoData.data); 
-      
-          }
+            setFavoriteMusic(favoData.data);
+            }
         )()
         },[])
 
     return (
-        <>
-        <h3>ヘッダー</h3>
-        <LinkButton text="Spotify認証/Auth" link="/auth" />
-        <h3>お気に入り</h3>
-        <div className="Favorite">
-        {
-          favoriteMusic.map((music) => (
-            <div key={music.musicID}>
-              <MusicItemIcon
-                musicID={music.musicID}
-                title={music.title}
-                artist={music.artist}
-                thumbnail={music.thumbnail}
-              />
-            </div>
-          ))
-        }
+      <div className="Favorite">
+        {/* ヘッダー */}
+        <div className="header">
+          <div className="header-left-content" style={{ color: "black"}}>
+            <LinkButton
+              link="/home"
+              icon={
+                <IoIosArrowBack />
+              }
+            />
+            <span>お気に入りの楽曲</span>
+          </div>
         </div>
-        <Navbar />
-        </>
+
+        {/* メイン */}
+        <div className="main">
+          <div className="music-grid-container">
+            {
+                favoriteMusic.map((music) => (
+                    <MusicItemIcon
+                    key={music.musicID}
+                    musicID={music.musicID}
+                    title={music.title}
+                    artist={music.artist}
+                    thumbnail={music.thumbnail}
+                    />
+                ))
+            }
+          </div>
+        </div>
+
+        {/* フッター */}
+        <div className="footer">
+          <Navbar />
+        </div>
+      </div>
     );
 }

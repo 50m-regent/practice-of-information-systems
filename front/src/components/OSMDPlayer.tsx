@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, use } from 'react';
 import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
 import { Difficulty } from '../types/types'; // 型定義ファイルのパスは適宜調整してください
 
@@ -13,9 +13,11 @@ interface OSMDPlayerProps {
   onRequestScrollToMeasure: (measureNumber: number, smooth?: boolean) => void;
 }
 
+type playModeType ='score' | `metronome`; // 再生モードの型定義
+
 // ダミーの習熟度を生成する関数
-const getDummyProficiency = (): number => {
-    return Math.floor(Math.random() * 10) + 1; // 1から10のランダムな整数
+const getDummyProficiency = async () => {
+    return (Math.random() * 10) + 1; // 1から10のランダムな整数
 };
 
 export function OSMDPlayer({
@@ -31,6 +33,7 @@ export function OSMDPlayer({
 }: OSMDPlayerProps) {
 
     const [isPlaying, setIsPlaying] = useState(false);
+    const [playMode, setPlayMode] = useState<playModeType>('score'); // 再生モードの状態管理
     const timerIdRef = useRef<number | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const [currentBpmRato, setCurrentBpmRato] = useState<number>(0); // デフォルトのBPMは120、必要に応じて変更可能
@@ -48,9 +51,11 @@ export function OSMDPlayer({
     // isPlaying, isRecording の最新値を非同期コールバック内で参照するための Ref
     const isPlayingRef = useRef(isPlaying);
     const isRecordingRef = useRef(isRecording);
+    const playModeRef = useRef<playModeType>(playMode);
 
     useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
     useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
+    useEffect(() => { playModeRef.current = playMode; }, [playMode]);
 
 
     const getNoteDurationMs = useCallback((duration: number, bpm: number) => (60 / bpm) * 1000 * duration * 4, []);
@@ -63,6 +68,10 @@ export function OSMDPlayer({
         }
         // return currentBpmRatoRef.current+basebpm!; // base_bpm が undefined でないことを保証するための非nullアサーション
     }, [currentBpmRato]);
+    const getCurrentBpm = useCallback(() => {
+        return basebpm + currentBpmRato; // base_bpm が undefined でないことを保証するための非nullアサーション
+    }, [basebpm, currentBpmRato]);
+
     const playBeep = useCallback((frequency: number, durationMs: number) => {
         if (!audioContextRef.current) return;
         const oscillator = audioContextRef.current.createOscillator();
@@ -347,7 +356,7 @@ export function OSMDPlayer({
         <div>
             <button onClick={() => {handlebpmChange(false)}}> ＜＜</button>
             <span style={{ display: 'inline-block', minWidth: '3em', textAlign: 'center' }}>
-                {basebpm+currentBpmRato}bpm
+                {getCurrentBpm()}bpm
             </span>
             <button onClick={() => {handlebpmChange(true)}}> ＞＞</button>
             <button onClick={handlePlayPause}>
