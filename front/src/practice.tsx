@@ -490,7 +490,7 @@ export const Practice = () => {
 
 
     const handleScrollToMeasure = (measureNumber: number, smooth :boolean = false) =>     {
-        if (1) return;
+        // if (1) return;
         const container = scrollContainerRef.current; // 事前に定義されたrefであると仮定します
         const div = mainDivRef.current; // 事前に定義されたrefであると仮定します
         // zoom_rate がこのスコープでアクセス可能であると仮定します。

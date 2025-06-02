@@ -259,8 +259,10 @@ export function OSMDPlayer({
                             if (note.pitch) {
                                 const freq = midiNoteNumberToFrequency(note.pitch.halfTone);
                                 clipsForCurrentMeasureRef_mainDisplay.current.push([freq, durationMs]);
+                                playBeepGeneric(mainAudioContextRef.current, 0, durationMs)
                             } else {
                                 clipsForCurrentMeasureRef_mainDisplay.current.push([0, durationMs]);
+                                playBeepGeneric(mainAudioContextRef.current, 0, durationMs)
                             }
                         });
                     });
@@ -277,7 +279,7 @@ export function OSMDPlayer({
                      }
                 }
                 step();
-            }, Math.max(durationMs, 30));
+            }, Math.max(durationMs, 20));
         };
         step();
     }, [osmd, getNoteDurationMs, midiNoteNumberToFrequency, onRequestScrollToMeasure]);
@@ -403,7 +405,7 @@ export function OSMDPlayer({
             accompanimentTimerIdRef.current = window.setTimeout(() => {
                 if(!accompanimentStoppedRef.current) cursor.next();
                 step();
-            }, Math.max(durationMs, 30));
+            }, Math.max(durationMs, 20));
         };
         step();
     }, [
@@ -498,13 +500,6 @@ export function OSMDPlayer({
         
         setIsPlaying(true);
 
-        if (shouldRunMainDisplay) {
-            console.log("[OSMDPlayer startCombinedPlayback] Starting main display cursor.");
-            mainDisplayOSMDByCursor(bpmToPlay);
-        } else {
-             displayStoppedRef.current = true;
-        }
-
         if (shouldRunAudioPlayback) {
             console.log("[OSMDPlayer startCombinedPlayback] Starting audio playback.");
             playOSMDByCursor(bpmToPlay);
@@ -512,6 +507,13 @@ export function OSMDPlayer({
             accompanimentStoppedRef.current = true;
             scoreAudioStoppedRef.current = true;
         }
+        if (shouldRunMainDisplay) {
+            console.log("[OSMDPlayer startCombinedPlayback] Starting main display cursor.");
+            mainDisplayOSMDByCursor(bpmToPlay);
+        } else {
+             displayStoppedRef.current = true;
+        }
+
 
     }, [
         mainDisplayOSMDByCursor,
