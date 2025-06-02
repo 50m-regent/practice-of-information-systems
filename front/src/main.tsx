@@ -1,18 +1,20 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './css/index.css'
-import { App }  from './App'
+// import { App }  from './App'
 import { Home }  from './home'
 import { Search }  from './search'
 import { Result } from './result'
 import { Favorite } from './favorite'
 import { Recommend } from './recommend'
 import { Practice } from './practice'
-import { Auth } from './Auth'
+// import { Auth } from './Auth'
+import { AuthProvider } from './contexts/AuthContext';
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <AuthProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
@@ -22,9 +24,10 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/favorite" element={<Favorite />} />
         <Route path="/recommend" element={<Recommend />} />
         <Route path="/practice" element={<Practice />} />
-        <Route path="/auth" element={<Auth />} />
+        {/* <Route path="/auth" element={<Auth />} /> */}
       </Routes>
     </BrowserRouter>
+    </AuthProvider>
     {/* <App /> */}
   </StrictMode>,
 )

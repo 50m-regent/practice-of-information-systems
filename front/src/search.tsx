@@ -76,7 +76,7 @@ export const Search = () => {//検索画面と結果表示画面をもつ
     useEffect(() => {// 最近の検索を取得
         (async () => {
             console.log('test')
-            // const history = await axios.get("http://localhosot:8080/history/search")
+            // const history = await axios.get("http://localhosot:8080/history/searches")
             // setRecentSearch(history.data);
             // ここではダミーデータを使用
             const recoData= {data:[

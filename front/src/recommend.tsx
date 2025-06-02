@@ -5,6 +5,7 @@ import axios from "axios";
 import { MusicItemIcon } from "./components/musicItemIcon";
 import  "./css/recommend.css"
 import { IoIosArrowBack } from 'react-icons/io';
+import { useAuth } from './contexts/AuthContext';
 
 type DysplayMusic ={
   musicID : number;
@@ -16,53 +17,58 @@ type DysplayMusic ={
 export const Recommend = () => {
     const title: string = "推薦画面";
     const [recommendMusic, setRecommendMusic] = useState<DysplayMusic[]>([]);
+    const { spotifyAccessToken, isSpotifyAuthenticated } = useAuth(); // Contextから取得
 
     useEffect(() => {
-        (
-            async () => {
-                // const recoData = await axios.get("http://localhost:8080/recommend?");
-                const recoData= {data:[
-              {
-                musicID: 5,
-                title: "Favorite Song 5",
-                artist: "Artist E",
-                thumbnail: "https://via.placeholder.com/100x100?text=Favo5",
-              },
-              {
-                musicID: 6,
-                title: "Recommended Song 1",
-                artist: "Artist X",
-                thumbnail: "https://via.placeholder.com/100x100?text=Reco1",
-              },
-              {
-                musicID: 7,
-                title: "Recommended Song 2",
-                artist: "Artist Y",
-                thumbnail: "https://via.placeholder.com/100x100?text=Reco2",
-              },
-              {
-                musicID: 8,
-                title: "Recommended Song 3",
-                artist: "Artist Z",
-                thumbnail: "https://via.placeholder.com/100x100?text=Reco3",
-              },
-              {
-                musicID: 9,
-                title: "Recommended Song 4",
-                artist: "Artist W",
-                thumbnail: "https://via.placeholder.com/100x100?text=Reco4",
-              },
-              {
-                musicID: 10,
-                title: "Recommended Song 5",
-                artist: "Artist V",
-                thumbnail: "https://via.placeholder.com/100x100?text=Reco5",
-              },
-            ]}
-            setRecommendMusic(recoData.data);
-            }
-        )()
-        },[])
+      const fetchRecommendations = async () => {
+        if (isSpotifyAuthenticated() && spotifyAccessToken) {
+          try {
+            console.log("Recommend.tsx: Fetching recommendations with Spotify token:", spotifyAccessToken);
+            // const recoData = await axios.get(`http://localhost:8080/recommendations/spotify?accesstoken=${spotifyAccessToken}`);
+            // setRecommendMusic(recoData.data);
+
+            // APIが準備できるまではダミーデータを使用
+            const dummySpotifyRecoData = {
+              data: [
+                { musicID: 60, title: "Spotify Reco 1 (from context)", artist: "Artist S1", thumbnail: "https://via.placeholder.com/100x100?text=SReco1" },
+                { musicID: 70, title: "Spotify Reco 2 (from context)", artist: "Artist S2", thumbnail: "https://via.placeholder.com/100x100?text=SReco2" },
+              ]
+            };
+            setRecommendMusic(dummySpotifyRecoData.data);
+
+          } catch (error) {
+            console.error("Error fetching recommendations from Spotify:", error);
+            // Spotifyからの取得に失敗した場合、習熟度ベースの推薦などにフォールバック
+            fetchProficiencyRecommendations();
+          }
+        } else {
+          console.log("Recommend.tsx: Spotify not authenticated or token not available. Fetching proficiency recommendations.");
+          fetchProficiencyRecommendations();
+        }
+      };
+
+      const fetchProficiencyRecommendations = async () => {
+        try {
+          // const recoData = await axios.get("http://localhost:8080/recommendations/proficiency");
+          // const recoData = await axios.get("http://localhost:8080/recommendations/spotify?accesstoken=${spotifyAccessToken}"); //Spotifyからおすすめ取るのはこっち
+          // setRecommendMusic(recoData.data);
+          // ダミーデータを使用
+          const proficiencyRecoData = {
+            data: [
+              { musicID: 5, title: "Proficiency Reco 1", artist: "Artist P1", thumbnail: "https://via.placeholder.com/100x100?text=PReco1" },
+              { musicID: 8, title: "Proficiency Reco 2", artist: "Artist P2", thumbnail: "https://via.placeholder.com/100x100?text=PReco2" },
+              { musicID: 9, title: "Proficiency Reco 3", artist: "Artist P3", thumbnail: "https://via.placeholder.com/100x100?text=PReco3" },
+            ]
+          };
+          setRecommendMusic(proficiencyRecoData.data);
+        } catch (error) {
+          console.error("Error fetching proficiency recommendations:", error);
+          setRecommendMusic([]); // エラー時は空にする
+        }
+      };
+
+      fetchRecommendations();
+    }, [spotifyAccessToken, isSpotifyAuthenticated]); // spotifyAccessTokenとisSpotifyAuthenticatedを依存配列に追加
     return (
       <div className="Recommend">
         {/* ヘッダー */}
@@ -82,15 +88,19 @@ export const Recommend = () => {
         <div className="main">
           <div className="music-grid-container">
             {
-                recommendMusic.map((music) => (
+                recommendMusic.length > 0 ? (
+                  recommendMusic.map((music) => (
                     <MusicItemIcon
-                    key={music.musicID}
-                    musicID={music.musicID}
-                    title={music.title}
-                    artist={music.artist}
-                    thumbnail={music.thumbnail}
+                      key={music.musicID}
+                      musicID={music.musicID}
+                      title={music.title}
+                      artist={music.artist}
+                      thumbnail={music.thumbnail}
                     />
-                ))
+                  ))
+                ) : (
+                  <p style={{ paddingLeft: '10px', color: 'gray' }}>おすすめの楽曲はありません。</p>
+                )
             }
           </div>
         </div>

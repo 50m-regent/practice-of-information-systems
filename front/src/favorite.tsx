@@ -21,7 +21,7 @@ export const Favorite = () => {
           (
               async () => {
                 const favoData = {data:[
-                // const favoData = await axios.get("http://localhost:8080/favorite");
+                // const favoData = await axios.get("http://localhost:8080/favorites");
               {
                 musicID: 1,
                 title: "Favorite Song 1",
