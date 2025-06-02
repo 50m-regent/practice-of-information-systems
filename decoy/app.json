@@ -1,0 +1,8 @@
+{
+  "expo": {
+    "scheme": "yasasheet",
+    "plugins": [
+      "expo-auth-session"
+    ]
+  }
+} 
