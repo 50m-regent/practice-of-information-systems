@@ -39,7 +39,7 @@ export function OSMDPlayer({
     // --- BPM関連 ---
     const [currentBpmRato, setCurrentBpmRato] = useState<number>(0);
     const getCurrentBpm = useCallback(() => basebpm + currentBpmRato, [basebpm, currentBpmRato]);
-    const handlebpmChange = useCallback((doUp : boolean) => {
+    const handlebpmChangeCallback = useCallback((doUp : boolean) => { // Renamed to avoid conflict with props if any, and to indicate it's a callback
         if(doUp) setCurrentBpmRato(prev => prev + 10);
         else setCurrentBpmRato(prev => Math.max(prev - 10, 10 - basebpm));
     }, [basebpm]);
@@ -76,9 +76,8 @@ export function OSMDPlayer({
     const currentMeasureForRecordingRef = useRef<number>(1);
 
     // --- 再生スタイル ---
-    const [playbackStyle, setPlaybackStyle] = useState<PlaybackStyle>('score');
-
-    const musicClipRef = useRef<[number, number][]>([]);
+    // デフォルトの再生スタイルを 'accompaniment' に変更
+    const [playbackStyle, setPlaybackStyle] = useState<PlaybackStyle>('accompaniment');
 
     // --- playbackOsmdRef の初期化と accompanimentXml のロード ---
     useEffect(() => {
@@ -125,21 +124,16 @@ export function OSMDPlayer({
                     });
             } else if (playbackOsmdRef.current && !accompanimentXml) {
                 console.log("[OSMDPlayer] No accompanimentXml provided. Clearing playbackOSMD and setting not ready.");
-                if(playbackOsmdRef.current.Sheet) playbackOsmdRef.current.clear();
+                if(playbackOsmdRef.current.Sheet) playbackOsmdRef.current.clear(); // Clear only if a sheet was loaded
                 setIsPlaybackOsmdReady(false);
             }
         }
     }, [accompanimentXml]);
 
-    // getNoteDurationMs: OSMDのnote.length.realValue（全音符を1.0とする比率）からミリ秒単位のデュレーションを計算
     const getNoteDurationMs = useCallback((osmdRealValue: number, bpm: number) => {
-        // osmdRealValue は全音符を1.0とした比率と仮定
-        // (例: 全音符=1.0, 二分音符=0.5, 四分音符=0.25, 八分音符=0.125)
         if (bpm <= 0) return 0;
-
-        const quarterNoteMs = (60 / bpm) * 1000; // 四分音符のミリ秒
-        const wholeNoteMs = quarterNoteMs * 4;   // 全音符のミリ秒
-
+        const quarterNoteMs = (60 / bpm) * 1000;
+        const wholeNoteMs = quarterNoteMs * 4;
         return osmdRealValue * wholeNoteMs;
     },[]);
 
@@ -186,6 +180,10 @@ export function OSMDPlayer({
         });
     }, []);
 
+    // Refs for mainDisplayOSMDByCursor's measure tracking
+    const activeMeasureNumberRef_mainDisplay = useRef<number>(0);
+    const clipsForCurrentMeasureRef_mainDisplay = useRef<[number, number][]>([]);
+
     const mainDisplayOSMDByCursor = useCallback((bpm: number) => {
         const currentOSMD = osmd.current;
         if (!currentOSMD || !currentOSMD.Sheet) {
@@ -201,26 +199,46 @@ export function OSMDPlayer({
             displayStoppedRef.current = true;
             return;
         }
+        
         cursor.reset();
         cursor.show();
-        musicClipRef.current = [];
+
+        activeMeasureNumberRef_mainDisplay.current = 0;
+        clipsForCurrentMeasureRef_mainDisplay.current = [];
+
+        if (cursor.iterator.CurrentMeasure) {
+            activeMeasureNumberRef_mainDisplay.current = cursor.iterator.CurrentMeasure.MeasureNumber;
+            console.log(`カーソルが小節 ${activeMeasureNumberRef_mainDisplay.current} に来ました (初期位置)`);
+        }
 
         const step = () => {
             if (displayStoppedRef.current) {
-                if(cursor) cursor.hide();
+                if (cursor) cursor.hide();
+                if (activeMeasureNumberRef_mainDisplay.current > 0 && clipsForCurrentMeasureRef_mainDisplay.current.length > 0) {
+                    console.log(`停止 (mainDisplay): 小節 ${activeMeasureNumberRef_mainDisplay.current} (処理中だった小節) のクリップ:`, [...clipsForCurrentMeasureRef_mainDisplay.current]);
+                }
                 return;
             }
 
             if (cursor.iterator.endReached) {
+                if (activeMeasureNumberRef_mainDisplay.current > 0 && clipsForCurrentMeasureRef_mainDisplay.current.length > 0) {
+                    console.log(`終端 (mainDisplay): 小節 ${activeMeasureNumberRef_mainDisplay.current} (最終小節) のクリップ:`, [...clipsForCurrentMeasureRef_mainDisplay.current]);
+                }
                 cursor.reset();
                 cursor.hide();
-                console.log("[OSMDPlayer mainDisplayOSMDByCursor] Music clip (mainDisplay):", musicClipRef.current);
+                console.log("[OSMDPlayer mainDisplayOSMDByCursor] Reached end of sheet.");
                 displayStoppedRef.current = true;
-                // 再生終了時に isPlaying を false にする
-                // ただし、もう一方の再生(playOSMDByCursor)も終了しているか確認が必要な場合がある
-                // ここでは、表示カーソルが終端に達したら全体の再生状態を停止と見なす（簡易的な場合）
-                // setIsPlaying(false); // stopCombinedPlayback を呼ぶのがより適切
                 return;
+            }
+
+            const currentIteratorMeasure = cursor.iterator.CurrentMeasure;
+            if (currentIteratorMeasure && currentIteratorMeasure.MeasureNumber !== activeMeasureNumberRef_mainDisplay.current) {
+                if (activeMeasureNumberRef_mainDisplay.current > 0 && clipsForCurrentMeasureRef_mainDisplay.current.length > 0) {
+                    console.log(`小節 ${activeMeasureNumberRef_mainDisplay.current} (n-1) の musicClipRef:`, [...clipsForCurrentMeasureRef_mainDisplay.current]);
+                }
+                activeMeasureNumberRef_mainDisplay.current = currentIteratorMeasure.MeasureNumber;
+                console.log(`カーソルが小節 ${activeMeasureNumberRef_mainDisplay.current} (n) に来ました`);
+                clipsForCurrentMeasureRef_mainDisplay.current = [];
             }
 
             const voiceEntries = cursor.iterator.CurrentVoiceEntries;
@@ -235,14 +253,14 @@ export function OSMDPlayer({
                 const longestDurationRealValue = noteDurations.length > 0 ? Math.max(0, ...noteDurations) : 0;
                 durationMs = getNoteDurationMs(longestDurationRealValue, bpm);
 
-                if (durationMs > 0) {
+                if (durationMs > 0 && activeMeasureNumberRef_mainDisplay.current > 0) {
                     voiceEntries.forEach(vEntry => {
                         vEntry.Notes.forEach(note => {
                             if (note.pitch) {
                                 const freq = midiNoteNumberToFrequency(note.pitch.halfTone);
-                                musicClipRef.current.push([freq, durationMs]);
+                                clipsForCurrentMeasureRef_mainDisplay.current.push([freq, durationMs]);
                             } else {
-                                musicClipRef.current.push([0, durationMs]);
+                                clipsForCurrentMeasureRef_mainDisplay.current.push([0, durationMs]);
                             }
                         });
                     });
@@ -255,15 +273,14 @@ export function OSMDPlayer({
                 if (!displayStoppedRef.current) {
                      cursor.next();
                      if (cursor.iterator.CurrentMeasure) {
-                         const currentMeasureNumber = cursor.iterator.CurrentMeasure.MeasureNumber;
-                         onRequestScrollToMeasure(currentMeasureNumber, true);
+                         onRequestScrollToMeasure(cursor.iterator.CurrentMeasure.MeasureNumber, true);
                      }
                 }
                 step();
             }, Math.max(durationMs, 30));
         };
         step();
-    }, [osmd, getNoteDurationMs, midiNoteNumberToFrequency, onRequestScrollToMeasure /*, setIsPlaying*/]);
+    }, [osmd, getNoteDurationMs, midiNoteNumberToFrequency, onRequestScrollToMeasure]);
 
 
     const playOSMDByCursor = useCallback((bpm: number) => {
@@ -283,9 +300,7 @@ export function OSMDPlayer({
         }
 
         if (playbackStyle === 'metronome') {
-            // getNoteDurationMs の第一引数は osmdRealValue (全音符=1.0 の比率)
-            // 四分音符の realValue は 0.25
-            const beatDurationMs = getNoteDurationMs(0.25, bpm); 
+            const beatDurationMs = getNoteDurationMs(0.25, bpm); // 0.25 for a quarter note
             if (beatDurationMs <= 0) {
                 console.warn("[OSMDPlayer playOSMDByCursor] Metronome beat duration is zero or negative. Stopping metronome.");
                 accompanimentStoppedRef.current = true;
@@ -353,7 +368,6 @@ export function OSMDPlayer({
                 cursor.reset();
                 if (isAccompanimentPlayback) cursor.hide();
                 accompanimentStoppedRef.current = true;
-                // setIsPlaying(false); // 同上
                 return;
             }
 
@@ -401,12 +415,11 @@ export function OSMDPlayer({
         midiNoteNumberToFrequency,
         playBeepGeneric,
         playMultipleBeepsGeneric,
-        // setIsPlaying
     ]);
 
     const stopCombinedPlayback = useCallback(() => {
         console.log("[OSMDPlayer stopCombinedPlayback] Stopping combined playback.");
-        setIsPlaying(false); // isPlaying を false に設定してUIを更新
+        setIsPlaying(false);
 
         displayStoppedRef.current = true;
         if (displayTimerIdRef.current !== null) {
@@ -443,7 +456,6 @@ export function OSMDPlayer({
     const startCombinedPlayback = useCallback((bpmToPlay: number) => {
         console.log(`[OSMDPlayer startCombinedPlayback] Attempting to start playback at ${bpmToPlay} BPM. Current style: ${playbackStyle}, isPlaying: ${isPlayingRef.current}`);
 
-        // isPlayingRef.current を参照して、本当に再生中なら停止する
         if (isPlayingRef.current) {
             console.log("[OSMDPlayer startCombinedPlayback] Playback was in progress, stopping first.");
             stopCombinedPlayback();
@@ -455,7 +467,6 @@ export function OSMDPlayer({
 
         const mainSheetAvailable = !!osmd.current?.Sheet;
         const accompanimentSheetAvailableAndReady = playbackStyle === 'accompaniment' && isPlaybackOsmdReady && !!playbackOsmdRef.current?.Sheet && !!playbackOsmdRef.current?.cursor;
-        const metronomeActive = playbackStyle === 'metronome';
 
         let shouldRunMainDisplay = false;
         let shouldRunAudioPlayback = false;
@@ -481,11 +492,11 @@ export function OSMDPlayer({
 
         if (!shouldRunMainDisplay && !shouldRunAudioPlayback) {
             console.warn("[OSMDPlayer startCombinedPlayback] Nothing to play or display. Aborting start.");
-            setIsPlaying(false); // 再生するものがないので再生状態にしない
+            setIsPlaying(false);
             return;
         }
         
-        setIsPlaying(true); // ここで再生状態を true に設定
+        setIsPlaying(true);
 
         if (shouldRunMainDisplay) {
             console.log("[OSMDPlayer startCombinedPlayback] Starting main display cursor.");
@@ -505,7 +516,7 @@ export function OSMDPlayer({
     }, [
         mainDisplayOSMDByCursor,
         playOSMDByCursor,
-        setIsPlaying, // isPlaying のセッターを依存配列に追加
+        setIsPlaying,
         osmd,
         playbackStyle,
         isPlaybackOsmdReady,
@@ -514,7 +525,7 @@ export function OSMDPlayer({
 
 
     const handlePlayPause = useCallback(() => {
-        if (isPlayingRef.current) { // isPlayingRef.current で現在の状態を確認
+        if (isPlayingRef.current) {
             stopCombinedPlayback();
         } else {
             startCombinedPlayback(getCurrentBpm());
@@ -557,8 +568,8 @@ export function OSMDPlayer({
         if (isPlayingRef.current) {
             stopCombinedPlayback();
         }
-        handlebpmChange(doUp);
-    }, [handlebpmChange, stopCombinedPlayback]);
+        handlebpmChangeCallback(doUp); // Use the renamed callback
+    }, [handlebpmChangeCallback, stopCombinedPlayback]);
 
     const handleDifficultyChangeWithStop = useCallback((newDiff: Difficulty) => {
         if (isPlayingRef.current) {
@@ -567,14 +578,18 @@ export function OSMDPlayer({
         onDifficultyChange(newDiff);
     }, [onDifficultyChange, stopCombinedPlayback]);
 
-    // 再生ループが両方とも終了したかをチェックするロジックの追加 (オプション)
-    useEffect(() => {
-        if (isPlaying && displayStoppedRef.current && accompanimentStoppedRef.current) {
-            console.log("[OSMDPlayer] Both playback loops have stopped, setting isPlaying to false.");
-            setIsPlaying(false);
-        }
-    }, [isPlaying, displayStoppedRef.current, accompanimentStoppedRef.current, setIsPlaying]);
 
+    useEffect(() => {
+        // This effect handles the case where both playback loops have naturally ended
+        // and isPlaying might still be true.
+        if (isPlaying && displayStoppedRef.current && accompanimentStoppedRef.current) {
+            // Check if the stop was initiated by user (isPlaying already false) or natural end
+            if(isPlayingRef.current) { // If isPlayingRef is still true, it means natural end
+                 console.log("[OSMDPlayer] Both playback loops have naturally stopped, setting isPlaying to false.");
+                 setIsPlaying(false);
+            }
+        }
+    }, [isPlaying, displayStoppedRef.current, accompanimentStoppedRef.current, setIsPlaying]); // isPlayingRef is not needed here as dependency
 
     return (
         <div>

@@ -199,6 +199,7 @@ export const Practice = () => {
                     if (!response.ok) throw new Error(`uchudekiritan${i}.musicxml の取得に失敗しました`); // `Failed to fetch uchudekiritan${i}.musicxml`
                     newXmls.push(await response.text()); // 1番目以降に固定難易度の楽譜
                 }
+                // response = await fetch(`/xml/yoaketohotaru.musicxml`); // 伴奏用XMLは未使用の可能性あり
                 response = await fetch(`/xml/uchudekiritan${ACCOMPANIMENT_NUM}.musicxml`); // 伴奏用XMLは未使用の可能性あり
                 accompanimentXmlRef.current = response.ok ? await response.text() : null; // 伴奏用XMLの取得
                 setXml(newXmls);
