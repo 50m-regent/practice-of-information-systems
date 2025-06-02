@@ -732,7 +732,7 @@ func calc_proficiency_api(r *gin.Engine, db *sql.DB) {
 
 		// Pythonスクリプトのパスを適切に指定
 		cmd := exec.Command("uv", "run", "python", "calculate_proficiency_runner.py")
-		cmd.Dir = "./tech" // 'tech' ディレクトリでコマンドを実行
+		cmd.Dir = "./../tech" // 'tech' ディレクトリでコマンドを実行
 		cmd.Stdin = bytes.NewReader(reqBytes)
 
 		var stdout, stderr bytes.Buffer
