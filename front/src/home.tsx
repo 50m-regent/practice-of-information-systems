@@ -1,10 +1,11 @@
 import { LinkButton } from "./components/link";
 import { Navbar } from './components/Navbar';
 import { useState, useEffect} from "react";
-// import axios from "axios"; // PKCEではトークン交換にaxiosは不要になりますが、他のAPI呼び出しで使用している場合は残してください。
+import axios from "axios"; // PKCEではトークン交換にaxiosは不要になりますが、他のAPI呼び出しで使用している場合は残してください。
 import { MusicItemIcon } from "./components/musicItemIcon";
 import { generateRandomString } from "./utils/stringUtils"; // 既存のユーティリティ
 import "./css/Home.css";
+import { useAuth } from './contexts/AuthContext';
 
 type DysplayMusic ={
   musicID : number;
@@ -52,8 +53,9 @@ export const Home = () => {
   const [favoriteMusic, setFavoriteMusic] = useState<DysplayMusic[]>([]);
   const [recommendMusic, setRecommendMusic] = useState<DysplayMusic[]>([]);
   const [quickAccess, setQuickAccess] = useState<DysplayMusic[]>([]);
-  const [spotifyAccessToken, setSpotifyAccessToken] = useState<string | null>(null);
-  const [spotifyTokenExpiresAt, setSpotifyTokenExpiresAt] = useState<number | null>(null);
+  // const [spotifyAccessToken, setSpotifyAccessToken] = useState<string | null>(null);
+  // const [spotifyTokenExpiresAt, setSpotifyTokenExpiresAt] = useState<number | null>(null);
+  const { spotifyAccessToken, spotifyTokenExpiresAt, setSpotifyAuthData, isSpotifyAuthenticated } = useAuth(); // Use context
 
   const openSpotifyLogin = async () => {
     const state = generateRandomString(16); // CSRF対策のstate
@@ -80,22 +82,25 @@ export const Home = () => {
 
   useEffect(() => {
     // localStorageからトークンを読み込む
-    const storedToken = localStorage.getItem('spotify_access_token');
-    const storedExpiresAt = localStorage.getItem('spotify_token_expires_at');
+    // const storedToken = localStorage.getItem('spotify_access_token');
+    // const storedExpiresAt = localStorage.getItem('spotify_token_expires_at');
 
-    if (storedToken && storedExpiresAt) {
-      const expiresAt = parseInt(storedExpiresAt, 10);
-      if (Date.now() < expiresAt) {
-        setSpotifyAccessToken(storedToken);
-        setSpotifyTokenExpiresAt(expiresAt);
-        console.log("Spotify token loaded from localStorage");
-      } else {
-        // Token expired
-        localStorage.removeItem('spotify_access_token');
-        localStorage.removeItem('spotify_token_expires_at');
-        console.log("Spotify token expired and removed from localStorage");
-      }
-    }
+    // if (storedToken && storedExpiresAt) {
+    //   const expiresAt = parseInt(storedExpiresAt, 10);
+    //   if (Date.now() < expiresAt) {
+    //     setSpotifyAccessToken(storedToken);
+    //     setSpotifyTokenExpiresAt(expiresAt);
+    //     console.log("Spotify token loaded from localStorage");
+    //   } else {
+    //     // Token expired
+    //     localStorage.removeItem('spotify_access_token');
+    //     localStorage.removeItem('spotify_token_expires_at');
+    //     console.log("Spotify token expired and removed from localStorage");
+    //   }
+    // }
+
+    // localStorageからのトークン読み込みはAuthProviderが担当します。
+    // このuseEffectは主にメッセージイベントリスナーと初期データ取得を担当します
 
     // Spotify認証コールバックからのメッセージを処理
     const handleAuthMessage = async (event: MessageEvent) => {
@@ -155,12 +160,14 @@ export const Home = () => {
 
           if (access_token && expires_in) {
             const expiresAt = Date.now() + (expires_in * 1000);
-            setSpotifyAccessToken(access_token);
-            setSpotifyTokenExpiresAt(expiresAt);
-            localStorage.setItem('spotify_access_token', access_token);
-            localStorage.setItem('spotify_token_expires_at', expiresAt.toString());
+            // setSpotifyAccessToken(access_token);
+            // setSpotifyTokenExpiresAt(expiresAt);
+            // localStorage.setItem('spotify_access_token', access_token);
+            // localStorage.setItem('spotify_token_expires_at', expiresAt.toString());
+            setSpotifyAuthData(access_token, expiresAt, refresh_token);
             if (refresh_token) {
-              localStorage.setItem('spotify_refresh_token', refresh_token); // リフレッシュトークンも保存
+              // localStorage.setItem('spotify_refresh_token', refresh_token); // リフレッシュトークンも保存
+              // refresh_tokenはsetSpotifyAuthData内でlocalStorageに保存されます
               console.log('Spotify Refresh Token obtained and stored.');
             }
             console.log('Spotify Access Token obtained directly from Spotify:', access_token);
@@ -250,9 +257,10 @@ export const Home = () => {
             thumbnail: "https://via.placeholder.com/100x100?text=Reco5",
           },
         ]}
-        // const favoData = await axios.get("http://localhost:8080/getfavorite");
-        // const recoData = await axios.get("http://localhost:8080/getrecommend?");
-        // const quickData = await axios.get("http://localhost:8080/getquickaccess");
+        // const favoData = await axios.get("http://localhost:8080/favorites");
+        // const recoData = await axios.get("http://localhost:8080/recommendations/proficiency"); // 習熟度からおすすめ取るのはこっち
+        // const recoData = await axios.get("http://localhost:8080/recommendations/spotify?accesstoken=${spotifyAccessToken}"); //Spotifyからおすすめ取るのはこっち
+        // const quickData = await axios.get("http://localhost:8080/getquickaccess"); //まだ実装されてない？
         setFavoriteMusic(favoData.data.slice(0,Math.min(MAX_MUSIC_NUM, favoData.data.length)));
         setRecommendMusic(recoData.data.slice(0,Math.min(MAX_MUSIC_NUM, recoData.data.length)));
         setQuickAccess(recoData.data.slice(0,Math.min(MAX_MUSIC_NUM, recoData.data.length)));
@@ -263,7 +271,7 @@ export const Home = () => {
       window.removeEventListener('message', handleAuthMessage);
       console.log("home.tsx: Event listener for 'message' removed.");
     };
-    },[]); // 依存配列は空のまま（初回マウント時のみ実行）
+    },[setSpotifyAuthData]); // 依存配列は空のまま（初回マウント時のみ実行）
 
   return (
     <div className="Home">
