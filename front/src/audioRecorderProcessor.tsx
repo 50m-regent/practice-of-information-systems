@@ -43,7 +43,51 @@ export function OSMDPlayer({
     const [isPlaying, setIsPlaying] = useState(false);
     const isPlayingRef = useRef(isPlaying);
     useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+    // **** playMultipleBeepsGeneric 関数の修正 ****
+    const playMultipleBeepsGeneric = useCallback((
+        audioCtx: AudioContext | null,
+        frequencies: number[],
+        durationMs: number
+    ) => {
+        if (!audioCtx || audioCtx.state === 'closed') {
+            console.warn("[OSMDPlayer] playMultipleBeepsGeneric: AudioContext not available or closed.");
+            return;
+        }
 
+        const stopTime = audioCtx.currentTime + Math.max(0.01, durationMs / 1000);
+        const validFrequencies = frequencies.filter(f => f > 0); // 無効な周波数を除外
+        const numNotes = validFrequencies.length;
+
+        if (numNotes === 0) return; // 再生する有効な音がない場合は何もしない
+
+        // 音数に基づいてゲインを調整
+        // 例: 1音ならフルボリューム(1.0)、音が増えるほど減衰させる
+        // Math.sqrt(numNotes) を使うと、音数が2倍になると音量は約0.707倍 (約-3dB) になる
+        // 最小ゲインも考慮すると良いかもしれない (例: Math.max(0.2, 1.0 / Math.sqrt(numNotes)))
+        const gainValue = 1.0 / Math.sqrt(numNotes); 
+        // const gainValue = numNotes > 1 ? 0.6 : 1.0; // より単純なアプローチ
+
+        validFrequencies.forEach(frequency => {
+            try {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain(); // 各オシレーターにGainNodeを作成
+
+                oscillator.type = 'sine'; // 引き続きサイン波
+                oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+                
+                // 計算したゲインを設定
+                gainNode.gain.setValueAtTime(gainValue, audioCtx.currentTime);
+
+                oscillator.connect(gainNode);       // オシレーターをGainNodeに接続
+                gainNode.connect(audioCtx.destination); // GainNodeを出力に接続
+
+                oscillator.start();
+                oscillator.stop(stopTime);
+            } catch (e) {
+                console.error("[OSMDPlayer] playMultipleBeepsGeneric error for frequency", frequency, ":", e);
+            }
+        });
+    }, []);
     // --- BPM関連 ---
     const [currentBpmRato, setCurrentBpmRato] = useState<number>(0);
     const getCurrentBpm = useCallback(() => basebpm + currentBpmRato, [basebpm, currentBpmRato]);
