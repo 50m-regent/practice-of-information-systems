@@ -1,5 +1,5 @@
 import { LinkButton } from "./components/test/link";
-import { useRef, useEffect, useState, useCallback, use } from 'react';
+import { useRef, useEffect, useState, useCallback} from 'react';
 import { useLocation } from "react-router-dom";
 import { OpenSheetMusicDisplay, Cursor } from 'opensheetmusicdisplay';
 import { OSMDPlayer } from './components/OSMDPlayer';
@@ -159,7 +159,8 @@ export const Practice = () => {
     useEffect(() => {
         if (mainDivRef.current && !osmdRef.current) {
             const instance = new OpenSheetMusicDisplay(mainDivRef.current, {
-                backend: "svg", drawTitle: true, autoResize: true,
+                backend: "svg", drawTitle: false, drawSubtitle: false, autoResize: true, 
+                drawComposer: false, drawLyricist: false,
             });
             osmdRef.current = instance;
             cursorRef.current = instance.cursor; // ここで初期カーソルをセット
@@ -198,9 +199,10 @@ export const Practice = () => {
                     if (!response.ok) throw new Error(`uchudekiritan${i}.musicxml の取得に失敗しました`); // `Failed to fetch uchudekiritan${i}.musicxml`
                     newXmls.push(await response.text()); // 1番目以降に固定難易度の楽譜
                 }
-                setXml(newXmls);
                 response = await fetch(`/xml/uchudekiritan${ACCOMPANIMENT_NUM}.musicxml`); // 伴奏用XMLは未使用の可能性あり
                 accompanimentXmlRef.current = response.ok ? await response.text() : null; // 伴奏用XMLの取得
+                setXml(newXmls);
+                // console.log(`[Practice] 伴奏用XMLの取得 ${accompanimentXmlRef.current}`); // `[Practice] Accompaniment XML fetch ${accompanimentXmlRef.current ? 'succeeded' : 'failed'}`
                 console.log(`[Practice] ${newXmls.length} バージョンのXML楽譜を取得しました。`); // `[Practice] Fetched ${newXmls.length} XML score versions.`
             } catch (error) {
                 console.error('[Practice] 楽譜の読み込みに失敗しました:', error);
@@ -469,107 +471,7 @@ export const Practice = () => {
         }
     // 依存配列から xml と MAX_DIFFICULTY を削除 (MAX_DIFFICULTY はコンポーネントスコープの定数)
     }, [userProficiency, difficulty, saveCursorPosition, getAutoDifficulty, AUTO_XML_NUM]);
-    // useEffect(() => {
-    //     if (difficulty === AUTO_XML_NUM && xml.length > 1 && xml[AUTO_XML_NUM]) { // AUTO_XML_NUM (0) を使用
-    //         const currentProficiency = userProficiency;
-    //         console.log(`[Practice ProfEffect] ユーザー習熟度: ${currentProficiency}、自動モード有効。`); // `[Practice ProfEffect] UserProficiency: ${currentProficiency}, Auto mode active.`
-            
-    //         const updateSheetForProficiency = async () => {
-    //             if (!cursorRef.current || !cursorRef.current.iterator) {
-    //                 console.warn("[Practice ProfEffect] 習熟度更新のためのカーソルまたはイテレータが準備できていません。カーソルを待機します。"); // "[Practice ProfEffect] Cursor or iterator not ready for proficiency update. Waiting for cursor."
-    //                 return;
-    //             }
-
-    //             saveCursorPosition(); // 現状のカーソル位置を保存
-
-    //             isUpdatingXmlForProficiencyRef.current = true; // フラグON
-
-    //             try {
-    //                 const iterator = cursorRef.current.iterator;
-    //                 // 現在の小節番号を取得。終端に達している場合は最後の小節の次とするか、あるいは楽譜全体の長さを考慮。
-    //                 // ここでは、終端なら最終小節番号 + 1、そうでなければ現在の小節番号とする。
-    //                 let currentMeasureNumberForUpdateStart: number;
-    //                 if (iterator.EndReached) {
-    //                     const lastMeasure = osmdRef.current?.Sheet?.SourceMeasures?.length;
-    //                     currentMeasureNumberForUpdateStart = lastMeasure ? lastMeasure + 1 : 1;
-    //                      console.log(`[Practice ProfEffect] カーソルが末尾です。更新開始小節の計算に最後の小節番号 (${lastMeasure}) を使用します。`);
-    //                 } else {
-    //                     currentMeasureNumberForUpdateStart = iterator.CurrentMeasure?.MeasureNumber ?? 1;
-    //                      console.log(`[Practice ProfEffect] 現在のカーソル小節番号: ${currentMeasureNumberForUpdateStart}`);
-    //                 }
-
-    //                 const autoDiff = getAutoDifficulty(currentProficiency);
-    //                 const baseXmlToUpdate = xml[AUTO_XML_NUM]; // 0番目のXML (自動更新用)
-    //                 const newDifficultyXml = xml[autoDiff]; // 習熟度に合わせた難易度のXML (1-5番目)
-
-    //                 if (!newDifficultyXml) {
-    //                     console.warn(`[Practice ProfEffect] 目標の自動難易度 ${autoDiff} のXMLが見つかりません。`); // `[Practice ProfEffect] XML for target auto-difficulty ${autoDiff} not found.`
-    //                     isUpdatingXmlForProficiencyRef.current = false;
-    //                     return;
-    //                 }
-
-    //                 const parser = new DOMParser();
-    //                 const xmlDocA = parser.parseFromString(baseXmlToUpdate, 'application/xml');
-    //                 const measuresA = Array.from(xmlDocA.querySelectorAll('measure'));
-    //                 // 更新開始は「現在のカーソル位置の2小節先」から
-    //                 const startMeasureForUpdate = currentMeasureNumberForUpdateStart + 2;
-    //                 // console.log(`[Practice ProfEffect] ${measuresA[10].getAttribute('number')}`)
-    //                 const targetMeasureNumbers = measuresA
-    //                     .map(m => m.getAttribute('number'))
-    //                     .filter(nStr => {
-    //                         if (!nStr) return false;
-    //                         const n = parseInt(nStr, 10);
-    //                         return !isNaN(n) && n >= startMeasureForUpdate;
-    //                     }) as string[];
-
-    //                 if (targetMeasureNumbers.length > 0) {
-    //                     console.log(`[Practice ProfEffect] 習熟度 ${currentProficiency} (自動難易度 ${autoDiff}) のため、小節 ${startMeasureForUpdate} から更新します。`); // `[Practice ProfEffect] Updating measures from ${startMeasureForUpdate} for proficiency ${currentProficiency} (to auto-difficulty ${autoDiff})`
-    //                     let workingXml = baseXmlToUpdate;
-    //                     let actualChangesMade = false;
-    //                     let anyReplaceFailed = false;
-    //                     console.log(`[Practice ProfEffect] 対象小節: ${targetMeasureNumbers.join(', ')}`); // `[Practice ProfEffect] Target measures: ${targetMeasureNumbers.join(', ')}`
-    //                     for (const mn of targetMeasureNumbers) {
-    //                         const nextXml = await replaceMeasure(workingXml, newDifficultyXml, mn);
-    //                         if (nextXml) {
-    //                             if (workingXml !== nextXml) {
-    //                                 actualChangesMade = true;
-    //                                 // console.log(`[Practice ProfEffect] 小節 ${mn} の置換に成功しました。`); // `[Practice ProfEffect] Successfully replaced measure ${mn}.`
-    //                             }
-    //                             // console.log(`[Practice ProfEffect] nextXML: ${nextXml}`); // `[Practice ProfEffect] nextXml: ${nextXml}`
-    //                             workingXml = nextXml;
-    //                         } else {
-    //                             console.warn(`[Practice ProfEffect] 小節 ${mn} の置換に失敗しました。これ以上の置換を中止します。`); // `[Practice ProfEffect] Failed to replace measure ${mn}. Aborting further replacements.`
-    //                             anyReplaceFailed = true;
-    //                             break;
-    //                         }
-    //                     }
-    //                     console.log(`[Practice ProfEffect] anyReplaceFailed:${anyReplaceFailed}, actualChangesMade:${actualChangesMade}`); // `[Practice ProfEffect] XML after replacements: ${workingXml}`
-    //                     if (!anyReplaceFailed && actualChangesMade) {
-    //                         console.log("[Practice ProfEffect] XMLが正常に変更されました。setXmlを呼び出します。"); // "[Practice ProfEffect] XML successfully modified, calling setXml."
-    //                         setXml(prevXml => {
-    //                             const newXmlArray = [...prevXml];
-    //                             newXmlArray[AUTO_XML_NUM] = workingXml; // 0番目を更新
-    //                             return newXmlArray;
-    //                         });
-    //                     } else if (anyReplaceFailed) {
-    //                         console.log("[Practice ProfEffect] replaceMeasure の失敗によりXML更新が中止されました。setXmlを呼び出しません。"); // "[Practice ProfEffect] XML update aborted due to replaceMeasure failure. Not calling setXml."
-    //                     } else {
-    //                         console.log("[Practice ProfEffect] XMLへの実際の変更はありません。setXmlを呼び出しません。"); // "[Practice ProfEffect] No actual changes to XML. Not calling setXml."
-    //                     }
-    //                 } else {
-    //                      console.log("[Practice ProfEffect] 習熟度変更のために更新する対象の小節がありません。"); // "[Practice ProfEffect] No target measures to update for proficiency change."
-    //                 }
-    //             } catch (error) {
-    //                  console.error("[Practice ProfEffect] 習熟度に応じたXML置換中にエラーが発生しました:", error); // "[Practice ProfEffect] Error during XML replacement for proficiency:", error
-    //             } finally {
-    //                 isUpdatingXmlForProficiencyRef.current = false; // ★ 即座に false に設定
-    //                 console.log(`[Practice ProfEffect] isUpdatingXmlForProficiencyRef set to false (finally block).`); // デバッグ用
-    //                 //  setTimeout(() => { isUpdatingXmlForProficiencyRef.current = false; }, 100); // 少し遅延させてフラグを戻す
-    //             }
-    //         };
-    //         updateSheetForProficiency();
-    //     }
-    // }, [userProficiency, difficulty, saveCursorPosition, getAutoDifficulty, AUTO_XML_NUM]); // 依存配列に AUTO_XML_NUM を追加 (実際には定数だが明確化のため)
+    
     const initialize_measuredifficulty = useCallback((xml:string,difficulty: Difficulty) => {
         const parser = new DOMParser();
         const xmlDocA = parser.parseFromString(xml, 'application/xml');
@@ -586,7 +488,8 @@ export const Practice = () => {
 
 
 
-    const handleScrollToMeasure = (measureNumber: number, smooth :boolean = true) =>     {
+    const handleScrollToMeasure = (measureNumber: number, smooth :boolean = false) =>     {
+        if (1) return;
         const container = scrollContainerRef.current; // 事前に定義されたrefであると仮定します
         const div = mainDivRef.current; // 事前に定義されたrefであると仮定します
         // zoom_rate がこのスコープでアクセス可能であると仮定します。
@@ -646,11 +549,14 @@ export const Practice = () => {
                     });
                     await sleep(10/Math.max(beforeScrollTop - targetScrollTop, targetScrollTop - beforeScrollTop)); // スクロール速度を調整
                 }
+                container.scrollTo({
+                    top: targetScrollTop,
+                    behavior: 'smooth'
+                });
             })();
         }
         container.scrollTo({
             top: targetScrollTop,
-            behavior: 'smooth'
         });
         // デバッグログ
         // console.log(`[DEBUG] measureNumber: ${measureNumber}`);
@@ -664,7 +570,7 @@ export const Practice = () => {
         // console.log(`[DEBUG] logicalMargin: ${logicalMargin.toFixed(2)}`);
         // console.log(`[DEBUG] targetScrollTop (calculated): ${targetScrollTop.toFixed(2)}`);
         // console.log(`[DEBUG] container.scrollTop (after set): ${container.scrollTop.toFixed(2)}`);
-        };
+    };
 
     const getMeasureDifficulty = useCallback((measureNumber: number, nowdifficulty: Difficulty =difficulty): Difficulty => {
         // measureDifficultiesRef.current は 0-indexed なので、measureNumber - 1 を使用
@@ -682,69 +588,6 @@ export const Practice = () => {
             return 0;
         }
     }, []); // 依存配列は空で、measureDifficultiesRef.current はコンポーネントスコープの変数
-
-
-    // const handleScrollToMeasure = useCallback((measureNumber: number) => {
-    //     const container = scrollContainerRef.current;
-    //     const div = mainDivRef.current; // OSMDが描画されるdiv
-    //     if (!container || !div || !osmdRef.current || !osmdRef.current.GraphicSheet) {
-    //         console.warn("[Practice Scroll] スクロールに必要なrefまたはGraphicSheetが利用できません。"); // "[Practice Scroll] Required refs or GraphicSheet not available for scrolling."
-    //         return;
-    //     }
-
-    //     let targetMeasureGraphical: any = null; // GraphicalMeasure 型を OpenSheetMusicDisplay からインポートするのが理想
-    //     // osmdRef.current.GraphicSheet.MeasureList を使う方が直接的かもしれない
-    //     if (osmdRef.current.GraphicSheet.MeasureList.length > measureNumber -1 && measureNumber > 0) {
-    //         const measuresInSystem = osmdRef.current.GraphicSheet.MeasureList[measureNumber-1];
-    //         if (measuresInSystem && measuresInSystem.length > 0) {
-    //              // 通常、最初の譜表の最初の小節フラグメントで十分
-    //             targetMeasureGraphical = measuresInSystem[0];
-    //         }
-    //     }
-
-    //     // レンダリングされたSVGから直接探す (フォールバックまたは代替手段)
-    //     // ID形式はOSMDバージョンや設定に依存する可能性がある
-    //     // `vf-measure-X` や `measure-mX` など
-    //     const svgMeasureById = div.querySelector(`g[id*="measure-${measureNumber}"], g[id$="-m${measureNumber}"], g[id="m${measureNumber}"]`);
-
-
-    //     if (!svgMeasureById && !targetMeasureGraphical) {
-    //         console.warn(`[Practice Scroll] 小節 ${measureNumber} のSVG要素またはGraphicalMeasureが見つかりません。`); // `[Practice Scroll] SVG element or GraphicalMeasure for measure ${measureNumber} not found.`
-    //         return;
-    //     }
-
-    //     let referenceTopY: number;
-    //     if (targetMeasureGraphical && targetMeasureGraphical.PositionAndShape) { // GraphicalMeasureから位置を取得 (推奨)
-    //         // GraphicalMeasure の絶対Y座標を取得する (MusicSystemのY座標 + Measureの相対Y座標)
-    //         const measureAbsoluteY = targetMeasureGraphical.PositionAndShape.AbsolutePosition.y;
-    //         // OSMDの内部単位は通常1/10pxなので、10倍してピクセル単位に変換
-    //         referenceTopY = measureAbsoluteY * osmdRef.current.zoom * 10;
-    //         // ただし、getBoundingClientRectが使えるSVG要素があるならそちらがより簡単で正確な場合が多い
-    //          if (svgMeasureById) {
-    //             referenceTopY = svgMeasureById.getBoundingClientRect().top;
-    //          } else {
-    //             // SVG要素が見つからない場合、計算したYを使うが、コンテナのオフセットを考慮する必要がある
-    //             referenceTopY = (container.getBoundingClientRect().top + measureAbsoluteY * osmdRef.current.zoom * 10);
-    //             // この計算は複雑で不正確になりやすい。SVG要素の利用を推奨。
-    //             console.warn("[Practice Scroll] SVG要素なしでGraphicalMeasureからY位置を計算しましたが、不正確な可能性があります。");
-    //          }
-    //     } else if (svgMeasureById) { // SVG要素から位置を取得
-    //         const lineGroup = svgMeasureById.closest('g.vf-stave') || svgMeasureById; // vf-stave (譜線グループ) を基準にする
-    //         referenceTopY = lineGroup.getBoundingClientRect().top;
-    //     } else {
-    //         return; // ここには到達しないはず
-    //     }
-
-    //     const containerRect = container.getBoundingClientRect();
-    //     const desiredVisualMarginPx = 20; // 画面上部からのマージン（ピクセル）
-    //     // スクロールコンテナ内でのターゲット要素の上端の相対位置
-    //     const elementTopRelativeToContainer = referenceTopY - containerRect.top;
-    //     // ズームを考慮した論理的なスクロール量
-    //     const targetScrollTop = container.scrollTop + (elementTopRelativeToContainer / ZOOM_RATE) - (desiredVisualMarginPx / ZOOM_RATE);
-
-    //     container.scrollTop = Math.max(0, targetScrollTop);
-    //     console.log(`[Practice Scroll] 小節 ${measureNumber} へスクロールしました。targetScrollTop: ${targetScrollTop.toFixed(2)}`); // `[Practice Scroll] Scrolled to measure ${measureNumber}, targetScrollTop: ${targetScrollTop.toFixed(2)}`
-    // }, [ZOOM_RATE]);
 
 
     return (
