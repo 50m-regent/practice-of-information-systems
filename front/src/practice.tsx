@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from "react-router-dom"; // useNavigate を�
 import { OpenSheetMusicDisplay, Cursor } from 'opensheetmusicdisplay';
 import { OSMDPlayer } from './components/OSMDPlayer';
 import { Difficulty } from './types/types';
+import { IoHeartSharp } from 'react-icons/io5'; // ハートアイコンをインポート
+import axios from "axios";
 // import axios from 'axios'; // 未使用であれば削除して問題ありません
 
 // 既存の replaceMeasure 関数 (変更なし)
@@ -118,7 +120,7 @@ export const Practice = () => {
     // const title: string = "楽譜表示画面"; 
     const ZOOM_RATE = 0.8;
     const MAX_DIFFICULTY: Difficulty = 5;
-    const ACCOMPANIMENT_NUM = "-1";
+    const ACCOMPANIMENT_NUM = "0";
     const AUTO_XML_NUM = 0;
 
     const location = useLocation();
@@ -133,6 +135,7 @@ export const Practice = () => {
     const [xml, setXml] = useState<string[]>([]);
     const [titleData, setTitleData] = useState<string>("unknown title"); // 初期値を変更
     const [artistData, setArtistData] = useState<string>("unknown artist"); // 初期値を変更
+    const [currentMusicID, setCurrentMusicID] = useState<string | null>(null); // ★ musicIDを保持するstate
 
     const measureDifficultiesRef = useRef<Difficulty[]>([]);
     const musicbpmRef = useRef<number>(120);
@@ -164,38 +167,98 @@ export const Practice = () => {
 
     // ... (楽譜読み込み useEffect - タイトル/アーティスト設定部分のみ変更の可能性あり)
     useEffect(() => {
+        let musicData: any = null
         const queryParams = new URLSearchParams(location.search);
-        const id = queryParams.get("musicID");
-        if (!id) {
+        const musicId = queryParams.get("musicID");
+        if (!musicId) {
             console.warn("[Practice] URLにmusicIDが見つかりません。"); // "[Practice] musicID not found in URL."
             setXml([]); return;
         }
+        setCurrentMusicID(musicId);
 
         (async () => {
             try {
-                // console.log(`[Practice InitEffect] ユーザーの初期習熟度をAxios経由で取得中 (musicID: ${id})...`);
+                console.log(`[Practice InitEffect] ユーザーの初期習熟度をAxios経由で取得中 (musicID: ${musicId})...`);
                 const randomdata = await (async () => {return Math.floor(Math.random() * 4) + 2})(); // 1から5のランダムな難易度を生成
                 console.log(`[Practice InitEffect] ランダムな習熟度データが生成されました: ${randomdata}`); // `[Practice InitEffect] Random proficiency data generated: ${randomdata}`
-                const responseProf = { data: {userProficiency: randomdata} }; // 仮のデータ
-                // const response = await axios.get("http://localhost:8080/getUserProficiency");
-                const currentUserProficiency = responseProf.data.userProficiency;
+                // const responseProf = { data: {proficiency: randomdata} }; // 仮のデータ
+                //==============================================
+                const responseProf = await axios.get(`http://localhost:8080/proficiency`)
+                // , {
+                //     method: 'GET',
+                // });
+                // console.log(responseProf)
+                
+                const currentUserProficiency = responseProf.data;
+
+                const requestBody = { // interface を使わずに直接オブジェクトを作成
+                    music_id: Number(musicId),
+                };
+
+                // Goサーバーが動作しているURLに応じて変更してください
+                const apiUrl = "http://localhost:8080/select";
+
+                
+                    try {
+                        const responseSelect = await axios.post(apiUrl, requestBody, {
+                            headers: {
+                                "Content-Type": "application/json",
+                                // 必要に応じて他のヘッダーを追加
+                            },
+                        });
+
+                        console.log(responseSelect); // axiosのレスポンスオブジェクト全体をログに出力
+
+                        // axiosはHTTPステータスコードが2xx以外の場合に自動的にエラーをスローするため、
+                        // responseSelect.ok のチェックは不要です。
+                        // エラーはcatchブロックで処理されます。
+
+                        // axiosのレスポンスボディは responseSelect.data に格納されます
+                        musicData = responseSelect.data; // GoのSelect APIの戻り値型に合わせる
+
+                        // ここで取得したデータ (data) を使ってUIを更新するなどの処理
+                        // 例: setMusicData(data);
+                        console.log("選択された音楽データ:", musicData);
+
+                    } catch (error) {
+                        // axios のエラーハンドリング
+                        if (axios.isAxiosError(error)) {
+                            // AxiosErrorの場合、error.responseにサーバーからの応答が含まれる可能性がある
+                            const status = error.response ? error.response.status : 'N/A';
+                            const errorData: any = error.response ? error.response.data : { error: 'Unknown error or no response data' }; // エラーレスポンスデータ
+                            
+                            console.error(`APIリクエスト失敗: ${apiUrl} ステータス: ${status}`, errorData);
+
+                            // サーバーからのエラーメッセージを表示、またはデフォルトのエラーメッセージを使用
+                            throw new Error(errorData.error || `HTTPエラー! ステータス: ${status}`);
+                        } else {
+                            // AxiosError以外のエラー (ネットワークエラーなど)
+                            console.error(`予期せぬエラー: ${error}`);
+                            throw new Error(`リクエスト中に予期せぬエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`);
+                        }
+                    }
+                //======================
+                console.log("musicData")
+                console.log(musicData)
                 handleProficiencyUpdate(currentUserProficiency); // 習熟度更新関数を呼ぶ
-                console.log(`[Practice] musicID: ${id} の楽譜を取得中`); // `[Practice] Fetching scores for musicID: ${id}`
+                console.log(`[Practice] musicID: ${musicId} の楽譜を取得中`); // `[Practice] Fetching scores for musicID: ${id}`
                 const newXmls: string[]= [];
-                console.log(`[Practice] 習熟度 ${currentUserProficiency} のため uchudekiritan${getAutoDifficulty(currentUserProficiency)}.musicxmlを取得中`); // `[Practice] Fetching yoaketohotaru.musicxml for proficiency ${currentUserProficiency}`
-                let response = await fetch(`/xml/uchudekiritan${getAutoDifficulty(currentUserProficiency)}.musicxml`);
-                if (!response.ok) throw new Error(`uchudekiritan${getAutoDifficulty(currentUserProficiency)}.musicxml の取得に失敗しました`); // `Failed to fetch yoaketohotaru.musicxml` (ファイル名修正)
-                const autoxml = await response.text(); // 0番目に習熟度に合わせた楽譜
+                console.log(`[Practice] 習熟度 ${currentUserProficiency} のため ${musicData["sheets"][getAutoDifficulty(currentUserProficiency)]["sheet"]}.musicxmlを取得中`); // `[Practice] Fetching yoaketohotaru.musicxml for proficiency ${currentUserProficiency}`
+                // let response = await fetch(`/xml/uchudekiritan${getAutoDifficulty(currentUserProficiency)}.musicxml`);
+                // if (!response.ok) throw new Error(`uchudekiritan${getAutoDifficulty(currentUserProficiency)}.musicxml の取得に失敗しました`); // `Failed to fetch yoaketohotaru.musicxml` (ファイル名修正)
+                // const autoxml = await response.text(); // 0番目に習熟度に合わせた楽譜
+                // console.log(musicData)
+                // console.log(musicData["sheets"][String(i)]["sheet"])
+                const autoxml = musicData["sheets"][getAutoDifficulty(currentUserProficiency)]["sheet"]
                 newXmls.push(autoxml); // 0番目に習熟度に合わせた楽譜
                 initialize_measuredifficulty(autoxml, getAutoDifficulty(currentUserProficiency)); // 初期化関数を呼び出し
                 for (let i = 1; i <= MAX_DIFFICULTY; i++) {
-                    response = await fetch(`/xml/uchudekiritan${i}.musicxml`);
-                    if (!response.ok) throw new Error(`uchudekiritan${i}.musicxml の取得に失敗しました`); // `Failed to fetch uchudekiritan${i}.musicxml`
-                    newXmls.push(await response.text()); // 1番目以降に固定難易度の楽譜
+                    const xml = musicData["sheets"][String(i)]["sheet"]
+                    newXmls.push(xml); // 1番目以降に固定難易度の楽譜
                 }
                 // response = await fetch(`/xml/yoaketohotaru.musicxml`); // 伴奏用XMLは未使用の可能性あり
-                response = await fetch(`/xml/uchudekiritan${ACCOMPANIMENT_NUM}.musicxml`); // 伴奏用XMLは未使用の可能性あり
-                accompanimentXmlRef.current = response.ok ? await response.text() : null; // 伴奏用XMLの取得
+                const acxml = musicData["sheets"][String(ACCOMPANIMENT_NUM)]["sheet"]
+                accompanimentXmlRef.current = acxml
                 setXml(newXmls);
                 // console.log(`[Practice] 伴奏用XMLの取得 ${accompanimentXmlRef.current}`); // `[Practice] Accompaniment XML fetch ${accompanimentXmlRef.current ? 'succeeded' : 'failed'}`
                 console.log(`[Practice] ${newXmls.length} バージョンのXML楽譜を取得しました。`); // `[Practice] Fetched ${newXmls.length} XML score versions.`
@@ -334,7 +397,8 @@ export const Practice = () => {
 
     // ... (getAutoDifficulty useCallback - 変更なし)
     const getAutoDifficulty = useCallback((proficiency: number): Difficulty => {
-        return Math.max(1, Math.min(MAX_DIFFICULTY, Math.floor(proficiency/2))) as Difficulty;
+        if (!proficiency){proficiency = 0}
+        return Math.min(5, Math.max(1, Math.min(MAX_DIFFICULTY, Math.floor(proficiency/2)))) as Difficulty;
     }, []);
 
     // ... (userProficiency 変更時の処理 useEffect - 変更なし)
@@ -561,6 +625,41 @@ export const Practice = () => {
         return 0; 
     }, [difficulty, AUTO_XML_NUM, MAX_DIFFICULTY]);
 
+    const handleAddToFavorites = useCallback(async () => {
+        if (!currentMusicID) {
+            console.warn("No musicID available to add to favorites.");
+            alert("楽曲IDが取得できていないため、お気に入りに追加できません。");
+            return;
+        }
+        try {
+            const musicIdNumber = parseInt(currentMusicID, 10);
+            if (isNaN(musicIdNumber)) {
+                console.error("Invalid MusicID format:", currentMusicID);
+                alert("楽曲IDの形式が正しくありません。");
+                return;
+            }
+
+            console.log(`[Practice] Adding Music ID ${musicIdNumber} to favorites...`);
+            const response = await fetch(`http://localhost:8080/favorites`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ music_id: musicIdNumber }), // API仕様に合わせて送信
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Add Favorite API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+            }
+            console.log(`Music ID ${musicIdNumber} successfully added to favorites.`);
+            alert(`「${titleData}」をお気に入りに追加しました！`);
+            // ここでボタンの見た目を変える（例：塗りつぶしハートにする）などの処理も可能
+        } catch (error) {
+            console.error("Failed to add to favorites:", error);
+            alert(`お気に入りへの追加に失敗しました。\n${error instanceof Error ? error.message : '不明なエラー'}`);
+        }
+    }, [currentMusicID, titleData]); // titleDataも依存配列に追加（アラートメッセージ用）
 
     // --- スタイル定義 ---
     const viewScoreContainerStyle: React.CSSProperties = {
@@ -630,6 +729,24 @@ export const Practice = () => {
         padding: '1rem', // ここで楽譜周囲の余白を確保
 
     }
+        // ★ ハートボタン用のスタイル
+    const favoriteButtonStyle: React.CSSProperties = {
+        background: 'none',
+        border: 'none',
+        color: '#FF6B6B', // ハートの色 (例: 赤系)
+        cursor: 'pointer',
+        fontSize: '1.6rem', // アイコンサイズ
+        padding: '5px',
+        marginLeft: 'auto', // これで右端に寄せる
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+    };
+    const favoriteButtonDisabledStyle: React.CSSProperties = {
+        ...favoriteButtonStyle,
+        color: '#CCCCCC', // 無効時の色
+        cursor: 'not-allowed',
+    };
 
     const osmdContainerStyle: React.CSSProperties = {
         width: `calc(100% / ${ZOOM_RATE})`, // 親要素の幅基準に変更
@@ -660,6 +777,14 @@ export const Practice = () => {
                 </div>
                 {/* LinkButton は画像のデザインにはないため、一旦削除。必要であれば別の場所に配置 */}
                 {/* <LinkButton text="ホーム画面" link="/home" /> */}
+                <button
+                    onClick={handleAddToFavorites}
+                    style={favoriteButtonStyle}
+                    title="お気に入りに追加"
+                    disabled={!currentMusicID}
+                >
+                    <IoHeartSharp />
+                </button>
             </header>
 
             <main ref={scrollContainerRef} style={mainContentStyle}>
