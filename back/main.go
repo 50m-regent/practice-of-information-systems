@@ -9,7 +9,6 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"os/exec"
 	"strconv"
 
 	"github.com/gin-contrib/cors"
@@ -719,8 +718,8 @@ func calc_proficiency_api(r *gin.Engine, db *sql.DB) {
 		pythonInputData := map[string]interface{}{
 			"audio":               req.Audio,
 			"difficulty":          req.Difficulty,
-			"correct_pitches":     req.CorrectPitches,
 			"current_proficiency": currentProficiency,
+			"correct_pitches":     req.CorrectPitches,
 			"sampling_rate":       fixedSamplingRate,
 		}
 		reqBytes, err := json.Marshal(pythonInputData)
@@ -730,37 +729,75 @@ func calc_proficiency_api(r *gin.Engine, db *sql.DB) {
 			return
 		}
 
-		// Pythonスクリプトのパスを適切に指定
-		cmd := exec.Command("uv", "run", "python", "calculate_proficiency_runner.py")
-		cmd.Dir = "./../tech" // 'tech' ディレクトリでコマンドを実行
-		cmd.Stdin = bytes.NewReader(reqBytes)
-
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-
-		err = cmd.Run()
+		// 3. Call external proficiency calculation API
+		const proficiencyApiUrl = "http://localhost:8008/calculate_proficiency"
+		resp, err := http.Post(proficiencyApiUrl, "application/json", bytes.NewReader(reqBytes))
 		if err != nil {
-			log.Printf("Error running Python script: %v. Stderr: %s", err, stderr.String())
-			// Python側でエラーがJSON形式でstderrに出力されることを期待
-			var pyErr struct {
+			log.Printf("Error calling proficiency calculation API: %v", err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to call proficiency calculation service"})
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			var errBody bytes.Buffer
+			_, _ = errBody.ReadFrom(resp.Body)
+			log.Printf("Proficiency calculation API returned error: %s, status code: %d, body: %s", err, resp.StatusCode, errBody.String())
+			// Try to parse error from API response
+			var apiError struct {
 				Error string `json:"error"`
 			}
-			if json.Unmarshal(stderr.Bytes(), &pyErr) == nil && pyErr.Error != "" {
-				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Proficiency calculation script error: " + pyErr.Error})
+			if json.NewDecoder(bytes.NewReader(errBody.Bytes())).Decode(&apiError) == nil && apiError.Error != "" {
+				ctx.JSON(resp.StatusCode, gin.H{"error": "Proficiency calculation error: " + apiError.Error})
 			} else {
-				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Proficiency calculation script failed: " + stderr.String()})
+				ctx.JSON(resp.StatusCode, gin.H{"error": "Proficiency calculation failed with status: " + resp.Status})
 			}
 			return
 		}
 
-		var resp CalculateProficiencyResponse
-		if err := json.Unmarshal(stdout.Bytes(), &resp); err != nil {
-			log.Printf("Error unmarshalling response from Python script: %v. Stdout: %s", err, stdout.String())
+		var apiResp CalculateProficiencyResponse
+		if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+			log.Printf("Error unmarshalling response from proficiency API: %v", err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse proficiency calculation result"})
 			return
 		}
 
-		ctx.JSON(http.StatusOK, resp)
+		/*
+			"os/exec"
+
+			// Pythonスクリプトのパスを適切に指定
+			cmd := exec.Command("uv", "run", "python", "calculate_proficiency_runner.py")
+			cmd.Dir = "./../tech" // 'tech' ディレクトリでコマンドを実行
+			cmd.Stdin = bytes.NewReader(reqBytes)
+
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+
+			err = cmd.Run()
+			if err != nil {
+				log.Printf("Error running Python script: %v. Stderr: %s", err, stderr.String())
+				// Python側でエラーがJSON形式でstderrに出力されることを期待
+				var pyErr struct {
+					Error string `json:"error"`
+				}
+				if json.Unmarshal(stderr.Bytes(), &pyErr) == nil && pyErr.Error != "" {
+					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Proficiency calculation script error: " + pyErr.Error})
+				} else {
+					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Proficiency calculation script failed: " + stderr.String()})
+				}
+				return
+			}
+
+			var resp CalculateProficiencyResponse
+			if err := json.Unmarshal(stdout.Bytes(), &resp); err != nil {
+				log.Printf("Error unmarshalling response from Python script: %v. Stdout: %s", err, stdout.String())
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse proficiency calculation result"})
+				return
+			}
+
+		*/
+
+		ctx.JSON(http.StatusOK, apiResp)
 	})
 }
