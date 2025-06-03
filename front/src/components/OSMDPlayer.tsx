@@ -14,7 +14,7 @@ import { MdQueueMusic } from "react-icons/md";
 import { LuPiano } from "react-icons/lu";
 import { TbMetronome } from 'react-icons/tb';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
-
+import axios from 'axios';
 // WebCodecs API の型定義 (グローバルに存在しない場合)
 declare global {
   interface AudioData {
@@ -154,7 +154,7 @@ export function OSMDPlayer({
     },[]);
 
     const midiNoteNumberToFrequency = useCallback((midiNoteNumber: number): number => {
-        return 440 * Math.pow(2, (midiNoteNumber - 69) / 12);
+        return 440 * Math.pow(2, (midiNoteNumber - 69) / 12+1);
     },[]);
 
     const playBeepGeneric = useCallback((audioCtx: AudioContext | null, frequency: number, durationMs: number) => {
@@ -208,11 +208,11 @@ export function OSMDPlayer({
 
     const processAudioFramesForMeasure = useCallback(async (
         measureNumber: number,
-        musicClips: [number, number][],
+        musicClips: [number, number][], // [frequency, durationMs][] と仮定
         audioFrames: AudioData[]
     ) => {
         console.log(`[WebCodecs Data] Processing for 小節 ${measureNumber} (n-1):`);
-        console.log(`  ├─ musicClipRef:`, musicClips);
+        console.log(`  ├─ musicClipRef (正解データ):`, musicClips);
 
         if (!isActuallyRecordingRef.current && audioFrames.length === 0) {
             console.log(`  └─ AudioFrames: (録音機能停止中 or no frames for this segment)`);
@@ -225,52 +225,75 @@ export function OSMDPlayer({
         
         console.log(`  └─ Processing ${audioFrames.length} AudioData frame(s) for measure ${measureNumber}:`);
 
+        let finalPcmData: Float32Array | null = null;
+        let actualSampleRate: number = 0; // 実際のサンプリングレートを保持
+
         try {
             let totalSamples = 0;
-            let sampleRate = 0;
+            let sampleRateFromFrames = 0;
             let numberOfChannels = 0;
 
             for (const frame of audioFrames) {
                 totalSamples += frame.numberOfFrames * frame.numberOfChannels;
-                if (sampleRate === 0) sampleRate = frame.sampleRate;
-                if (numberOfChannels === 0) numberOfChannels = frame.numberOfChannels;
-                if (frame.sampleRate !== sampleRate || frame.numberOfChannels !== numberOfChannels) {
-                    console.warn("[WebCodecs Data] Inconsistent audio frame properties (sampleRate/channels).");
+                if (sampleRateFromFrames === 0 && frame.sampleRate > 0) sampleRateFromFrames = frame.sampleRate;
+                if (numberOfChannels === 0 && frame.numberOfChannels > 0) numberOfChannels = frame.numberOfChannels;
+                
+                // サンプルレートやチャンネル数がフレーム間で異なる場合の警告 (最初の有効な値を採用)
+                if (frame.sampleRate > 0 && sampleRateFromFrames > 0 && frame.sampleRate !== sampleRateFromFrames) {
+                    console.warn(`[WebCodecs Data] Inconsistent audio frame sampleRate. Expected ${sampleRateFromFrames}, got ${frame.sampleRate}. Using first detected rate.`);
+                }
+                if (frame.numberOfChannels > 0 && numberOfChannels > 0 && frame.numberOfChannels !== numberOfChannels) {
+                    console.warn(`[WebCodecs Data] Inconsistent audio frame numberOfChannels. Expected ${numberOfChannels}, got ${frame.numberOfChannels}. Using first detected count.`);
                 }
             }
+            actualSampleRate = sampleRateFromFrames; 
             
-            if (totalSamples === 0) {
-                console.log(`      └─ No actual samples in received AudioData frames.`);
-                audioFrames.forEach(frame => frame.close());
-                return;
+            if (totalSamples === 0 || numberOfChannels === 0 || actualSampleRate === 0) {
+                console.log(`      └─ No actual samples, channels, or valid sampleRate in received AudioData frames. SR: ${actualSampleRate}, Ch: ${numberOfChannels}, Samples: ${totalSamples}`);
+                audioFrames.forEach(frame => { try { frame.close(); } catch(e){} });
+                return; 
             }
 
-            const combinedPcmData = new Float32Array(totalSamples / numberOfChannels);
+            const combinedPcmData = new Float32Array(Math.floor(totalSamples / numberOfChannels)); // 整数にする
             let currentOffset = 0;
 
             for (const frame of audioFrames) {
                 const frameDataSize = frame.numberOfFrames;
-                
                 if (frame.format === 'f32-planar' || frame.format === 'f32' || frame.format === 'S16' || frame.format === 'S32' || frame.format === 'U8') {
                     const singleChannelFrameData = new Float32Array(frame.numberOfFrames);
                     try {
-                        if(frame.numberOfChannels === 1) {
+                        if (frame.numberOfChannels === 1) {
                              frame.copyTo(singleChannelFrameData, { planeIndex: 0, frameCount: frame.numberOfFrames });
                         } else if (frame.numberOfChannels > 1 && (frame.format === 'f32-planar')) {
+                            // 最初のチャンネル(planeIndex: 0)のデータを取得
                             frame.copyTo(singleChannelFrameData, { planeIndex: 0, frameCount: frame.numberOfFrames });
                         } else if (frame.numberOfChannels > 1 && frame.format === 'f32') {
+                            // インターリーブ形式の場合、最初のチャンネルを抽出
                             const interleavedData = new Float32Array(frame.numberOfFrames * frame.numberOfChannels);
                             frame.copyTo(interleavedData, { planeIndex: 0, frameCount: frame.numberOfFrames });
                             for (let i = 0; i < frame.numberOfFrames; i++) {
-                                singleChannelFrameData[i] = interleavedData[i * frame.numberOfChannels + 0];
+                                singleChannelFrameData[i] = interleavedData[i * frame.numberOfChannels + 0]; // 0番目のチャンネル
                             }
                         } else {
                             console.warn(`[WebCodecs Data] Unsupported channel/format combination for direct extraction: ${frame.format}, channels: ${frame.numberOfChannels}`);
                             frame.close();
                             continue;
                         }
-                        combinedPcmData.set(singleChannelFrameData, currentOffset);
-                        currentOffset += singleChannelFrameData.length;
+                        // 配列の範囲外アクセスを防ぐ
+                        if (currentOffset + singleChannelFrameData.length <= combinedPcmData.length) {
+                            combinedPcmData.set(singleChannelFrameData, currentOffset);
+                            currentOffset += singleChannelFrameData.length;
+                        } else {
+                            console.warn("[WebCodecs Data] Buffer overflow averted while combining PCM data. Some data might be truncated.");
+                            // 残りだけコピーするなど、より詳細なハンドリングも可能
+                            const remainingSpace = combinedPcmData.length - currentOffset;
+                            if (remainingSpace > 0) {
+                                combinedPcmData.set(singleChannelFrameData.slice(0, remainingSpace), currentOffset);
+                                currentOffset += remainingSpace;
+                            }
+                            frame.close(); // このフレームはこれ以上処理できないので閉じる
+                            break; // ループを抜ける
+                        }
                     } catch (e) {
                         console.error("[WebCodecs Data] Error copying data from AudioData frame:", e, frame);
                     }
@@ -280,110 +303,220 @@ export function OSMDPlayer({
                 frame.close();
             }
             
-            const finalPcmData = combinedPcmData.slice(0, currentOffset);
+            finalPcmData = combinedPcmData.slice(0, currentOffset);
 
-            console.log(`      ├─ Combined PCM Data: Sample Rate: ${sampleRate}Hz, Channels (processed): 1, Length: ${finalPcmData.length} samples`);
+            console.log(`      ├─ Combined PCM Data: Sample Rate: ${actualSampleRate}Hz, Channels (processed): 1, Length: ${finalPcmData.length} samples`);
             const samplesToDisplay = 100;
             console.log(`        └─ First ${Math.min(samplesToDisplay, finalPcmData.length)} Samples:`, finalPcmData.slice(0, samplesToDisplay));
-
+            
         } catch (error) {
             console.error(`[WebCodecs Data] Error processing AudioData frames for measure ${measureNumber}:`, error);
             audioFrames.forEach(frame => {
                 try { frame.close(); } catch (e) { /* ignore close error */ }
             });
+            return; 
         }
-    }, []);
+
+        // --- API通信処理 ---
+        if (finalPcmData && finalPcmData.length > 0 && actualSampleRate > 0 && isActuallyRecordingRef.current) {
+            const measureDiff = getMeasureDifficulty(measureNumber); 
+        
+            // --- durationMsのスケーリング処理 ---
+            let totalSheetDurationMs = 0;
+            musicClips.forEach(clip => {
+                totalSheetDurationMs += clip[1]; // clip[1] は durationMs
+            });
+
+            // 録音されたオーディオの実際のミリ秒単位の長さ
+            const actualAudioDurationMs = (finalPcmData.length / actualSampleRate) * 1000;
+
+            let scalingFactor = 1.0;
+            if (totalSheetDurationMs > 0) {
+                scalingFactor = actualAudioDurationMs / totalSheetDurationMs;
+            } else if (actualAudioDurationMs > 0) {
+                // シート上にノートがないが音声がある場合、durationMsはそのまま送られる
+                // scalingFactor = 1.0; のまま
+            }
+
+            // musicClipsの形式を維持しつつ、durationMsをスケーリング
+            // ここで新しい配列を作成し、元のmusicClipsを変更しない
+            const correctPitchesForApi: number[][] = musicClips.map(clip => [
+                clip[0], // frequency (Hz)
+                clip[1] * scalingFactor // duration (ms) - スケーリングファクターを適用
+            ]); 
+            
+            // const correctPitchesForApi: number[][] = musicClips.map(clip => [
+            //     clip[0], // frequency (Hz)
+            //     clip[1]  // duration (ms)
+            // ]);
+
+            const payload = {
+                audio: Array.from(finalPcmData), 
+                difficulty: measureDiff,
+                correct_pitches: correctPitchesForApi,
+                // correct_pitches: musicClips,
+                // correct_pitches: correctPitchesForApi,
+                // sampling_rate はGo側で固定値(48000.0)が使われるため、ここでは送信しない。
+                // もしPython側でフロントの実際のサンプリングレートが必要な場合は、
+                // GoのAPI仕様とPythonスクリプト呼び出しを変更し、ここから actualSampleRate を送信する必要がある。
+                // current_proficiency もGo側でDBから取得するため送信しない。
+            };
+            console.log(`[API Send] /calc_proficiency for measure ${measureNumber} with difficulty ${measureDiff}. Actual SR: ${actualSampleRate}Hz (Note: Go backend might use a fixed SR for Python script).`);
+            console.log(payload.correct_pitches)
+            console.log(payload.audio)
+            console.log(`[API Send] Payload (summary):`, {
+                audio_length: payload.audio.length,
+                difficulty: payload.difficulty,
+                correct_pitches_count: payload.correct_pitches.length,
+            });
+
+            try {
+                // const response = await fetch(`http://localhost:8080/calc_proficiency`, {
+                //     method: 'POST',
+                //     headers: {
+                //         'Content-Type': 'application/json',
+                //     },
+                //     body: JSON.stringify(payload),
+                // });
+                const response = await axios.post(`http://localhost:8080/calc_proficiency`, payload, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                const proficiencyResponse = response.data; 
+                console.log(proficiencyResponse)
+            if (proficiencyResponse && typeof proficiencyResponse.proficiency === 'number') {
+                const newOverallProficiency = proficiencyResponse.proficiency;
+                console.log(`[API Recv] Calculated new overall proficiency (for measure ${measureNumber}):`, newOverallProficiency);
+                onProficiencyUpdate(newOverallProficiency); 
+            } else {
+                console.error("[API Recv Error] Unexpected response format from /calc_proficiency:", proficiencyResponse);
+                throw new Error("Invalid response format from proficiency calculation API.");
+            }
+
+        } catch (error) {
+            // axios のエラーハンドリング
+            if (axios.isAxiosError(error)) {
+                // AxiosErrorの場合、responseプロパティにサーバーからの応答が含まれる可能性がある
+                const status = error.response ? error.response.status : 'N/A';
+                const errorBody = error.response ? JSON.stringify(error.response.data) : error.message;
+                console.error(`[API Recv Error] /calc_proficiency request failed: ${status} ${error.response?.statusText || ''}`, errorBody);
+                let detailedError = errorBody;
+                try {
+                    const errorJson = JSON.parse(errorBody);
+                    if (errorJson && errorJson.error) {
+                        detailedError = errorJson.error;
+                    }
+                } catch(e) { /* ignore */ }
+                throw new Error(`API /calc_proficiency request failed: ${status} - ${detailedError}`);
+            } else {
+                // その他のエラー
+                console.error(`[API Call Error] Failed to calculate proficiency for measure ${measureNumber}:`, error);
+                throw error; // エラーを再スロー
+            }
+        }
+    } else if (finalPcmData && (finalPcmData.length === 0 || actualSampleRate === 0)) {
+        console.log(`[API Send] No valid PCM data (length: ${finalPcmData?.length}, SR: ${actualSampleRate}) to send for measure ${measureNumber}. Skipping API call.`);
+    } else if (!isActuallyRecordingRef.current) {
+        console.log(`[API Send] Not currently recording. Skipping API call for measure ${measureNumber}.`);
+    }
+}, [getMeasureDifficulty, onProficiencyUpdate]);
 
 
     const mainDisplayOSMDByCursor = useCallback((bpm: number) => {
-        const currentOSMD = osmd.current;
-        if (!currentOSMD || !currentOSMD.Sheet) { displayStoppedRef.current = true; return; }
-        displayStoppedRef.current = false;
-        const cursor = currentOSMD.cursor;
-        if (!cursor) { displayStoppedRef.current = true; return; }
-        
-        cursor.reset();
-        cursor.show();
-        activeMeasureNumberRef_mainDisplay.current = 0;
-        clipsForCurrentMeasureRef_mainDisplay.current = [];
-        audioFramesForCurrentMeasureRef.current = [];
+    const currentOSMD = osmd.current;
+    if (!currentOSMD || !currentOSMD.Sheet) { displayStoppedRef.current = true; return; }
+    displayStoppedRef.current = false;
+    const cursor = currentOSMD.cursor;
+    if (!cursor) { displayStoppedRef.current = true; return; }
+    
+    cursor.reset();
+    cursor.show();
+    activeMeasureNumberRef_mainDisplay.current = 0;
+    clipsForCurrentMeasureRef_mainDisplay.current = [];
+    audioFramesForCurrentMeasureRef.current = [];
 
-        if (cursor.iterator.CurrentMeasure) {
-            activeMeasureNumberRef_mainDisplay.current = cursor.iterator.CurrentMeasure.MeasureNumber;
-        }
+    if (cursor.iterator.CurrentMeasure) {
+        activeMeasureNumberRef_mainDisplay.current = cursor.iterator.CurrentMeasure.MeasureNumber;
+    }
 
-        const step = () => {
-            if (displayStoppedRef.current) {
-                if (cursor) cursor.hide();
-                if (activeMeasureNumberRef_mainDisplay.current > 0) {
-                    processAudioFramesForMeasure(
-                        activeMeasureNumberRef_mainDisplay.current,
-                        [...clipsForCurrentMeasureRef_mainDisplay.current],
-                        [...audioFramesForCurrentMeasureRef.current]
-                    );
-                    audioFramesForCurrentMeasureRef.current = [];
-                }
-                return;
-            }
-
-            if (cursor.iterator.endReached) {
-                if (activeMeasureNumberRef_mainDisplay.current > 0) {
-                    processAudioFramesForMeasure(
-                        activeMeasureNumberRef_mainDisplay.current,
-                        [...clipsForCurrentMeasureRef_mainDisplay.current],
-                        [...audioFramesForCurrentMeasureRef.current]
-                    );
-                    audioFramesForCurrentMeasureRef.current = [];
-                }
-                cursor.reset(); cursor.hide(); displayStoppedRef.current = true;
-                return;
-            }
-            
-            const currentIteratorMeasure = cursor.iterator.CurrentMeasure;
-            if (currentIteratorMeasure && currentIteratorMeasure.MeasureNumber !== activeMeasureNumberRef_mainDisplay.current) {
-                if (activeMeasureNumberRef_mainDisplay.current > 0) { 
-                    processAudioFramesForMeasure(
-                        activeMeasureNumberRef_mainDisplay.current,
-                        [...clipsForCurrentMeasureRef_mainDisplay.current],
-                        [...audioFramesForCurrentMeasureRef.current]
-                    );
-                }
-                activeMeasureNumberRef_mainDisplay.current = currentIteratorMeasure.MeasureNumber;
-                clipsForCurrentMeasureRef_mainDisplay.current = [];
+    const step = () => {
+        if (displayStoppedRef.current) {
+            if (cursor) cursor.hide();
+            if (activeMeasureNumberRef_mainDisplay.current > 0) {
+                processAudioFramesForMeasure(
+                    activeMeasureNumberRef_mainDisplay.current,
+                    [...clipsForCurrentMeasureRef_mainDisplay.current],
+                    [...audioFramesForCurrentMeasureRef.current]
+                );
                 audioFramesForCurrentMeasureRef.current = [];
             }
+            return;
+        }
 
-            const voiceEntries = cursor.iterator.CurrentVoiceEntries;
-            let durationMs = 0;
-            if (voiceEntries.length === 0) { durationMs = 50; } 
-            else {
-                const noteDurations = voiceEntries.flatMap(entry => entry.Notes.map(note => note.length.realValue));
-                const longestDurationRealValue = noteDurations.length > 0 ? Math.max(0, ...noteDurations) : 0;
-                durationMs = getNoteDurationMs(longestDurationRealValue, bpm);
-                if (durationMs > 0 && activeMeasureNumberRef_mainDisplay.current > 0) {
-                    voiceEntries.forEach(vEntry => vEntry.Notes.forEach(note => {
-                        const freq = note.pitch ? midiNoteNumberToFrequency(note.pitch.halfTone) : 0;
-                        clipsForCurrentMeasureRef_mainDisplay.current.push([freq, durationMs]);
-                         if ((!mainAudioContextRef.current || mainAudioContextRef.current.state === 'closed') && freq === 0 && durationMs > 0) {
-                            try { mainAudioContextRef.current = new AudioContext(); } catch(e) {}
-                         }
-                    }));
-                } else if (longestDurationRealValue === 0 && voiceEntries.length > 0) { durationMs = 50; }
+        if (cursor.iterator.endReached) {
+            if (activeMeasureRef_mainDisplay.current > 0) {
+                processAudioFramesForMeasure(
+                    activeMeasureNumberRef_mainDisplay.current,
+                    [...clipsForCurrentMeasureRef_mainDisplay.current],
+                    [...audioFramesForCurrentMeasureRef.current]
+                );
+                audioFramesForCurrentMeasureRef.current = [];
             }
+            cursor.reset(); cursor.hide(); displayStoppedRef.current = true;
+            return;
+        }
+        
+        const currentIteratorMeasure = cursor.iterator.CurrentMeasure;
+        if (currentIteratorMeasure && currentIteratorMeasure.MeasureNumber !== activeMeasureNumberRef_mainDisplay.current) {
+            if (activeMeasureNumberRef_mainDisplay.current > 0) { 
+                processAudioFramesForMeasure(
+                    activeMeasureNumberRef_mainDisplay.current,
+                    [...clipsForCurrentMeasureRef_mainDisplay.current],
+                    [...audioFramesForCurrentMeasureRef.current]
+                );
+            }
+            activeMeasureNumberRef_mainDisplay.current = currentIteratorMeasure.MeasureNumber;
+            clipsForCurrentMeasureRef_mainDisplay.current = [];
+            audioFramesForCurrentMeasureRef.current = [];
+        }
+
+        const voiceEntries = cursor.iterator.CurrentVoiceEntries;
+        let durationMs = 0;
+        if (voiceEntries.length === 0) { durationMs = 50; } 
+        else {
+            const noteDurations = voiceEntries.flatMap(entry => entry.Notes.map(note => note.length.realValue));
+            const longestDurationRealValue = noteDurations.length > 0 ? Math.max(0, ...noteDurations) : 0;
+            durationMs = getNoteDurationMs(longestDurationRealValue, bpm);
             
-            const timeoutDelay = Math.max(durationMs, MIN_TIMEOUT_DELAY);
-            if(displayTimerIdRef.current) clearTimeout(displayTimerIdRef.current);
-            displayTimerIdRef.current = window.setTimeout(() => {
-                if (!displayStoppedRef.current) {
-                     cursor.next();
-                     if (cursor.iterator.CurrentMeasure) onRequestScrollToMeasure(cursor.iterator.CurrentMeasure.MeasureNumber, true);
-                     if(displayTimerIdRef.current) clearTimeout(displayTimerIdRef.current);
-                     displayTimerIdRef.current = window.setTimeout(step, NEXT_STEP_DELAY);
-                } else { step(); }
-            }, timeoutDelay);
-        };
-        step();
-    }, [osmd, getNoteDurationMs, midiNoteNumberToFrequency, onRequestScrollToMeasure, processAudioFramesForMeasure]);
+            if (durationMs > 0 && activeMeasureNumberRef_mainDisplay.current > 0) {
+                // ここを修正: forEach を使わず、最初の voiceEntry の最初の note のみを使用
+                const firstVoiceEntry = voiceEntries[0];
+                if (firstVoiceEntry && firstVoiceEntry.Notes.length > 0) {
+                    const firstNote = firstVoiceEntry.Notes[0];
+                    const freq = firstNote.pitch ? midiNoteNumberToFrequency(firstNote.pitch.halfTone) : 0;
+                    
+                    if (freq > 0) { // 周波数が有効な場合のみ追加
+                        clipsForCurrentMeasureRef_mainDisplay.current.push([freq, durationMs]);
+                        // console.log(`[DEBUG] Added single note (Freq: ${freq.toFixed(2)}, Dur: ${durationMs}) for measure ${activeMeasureNumberRef_mainDisplay.current}`);
+                    }
+                }
+            } else if (longestDurationRealValue === 0 && voiceEntries.length > 0) { durationMs = 50; }
+        }
+        
+        const timeoutDelay = Math.max(durationMs, MIN_TIMEOUT_DELAY);
+        if(displayTimerIdRef.current) clearTimeout(displayTimerIdRef.current);
+        displayTimerIdRef.current = window.setTimeout(() => {
+            if (!displayStoppedRef.current) {
+                 cursor.next();
+                 if (cursor.iterator.CurrentMeasure) onRequestScrollToMeasure(cursor.iterator.CurrentMeasure.MeasureNumber, true);
+                 if(displayTimerIdRef.current) clearTimeout(displayTimerIdRef.current);
+                 displayTimerIdRef.current = window.setTimeout(step, NEXT_STEP_DELAY);
+            } else { step(); }
+        }, timeoutDelay);
+    };
+    step();
+}, [osmd, getNoteDurationMs, midiNoteNumberToFrequency, onRequestScrollToMeasure, processAudioFramesForMeasure]);
 
 
     const playOSMDByCursor = useCallback((bpm: number) => {
