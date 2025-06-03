@@ -480,7 +480,7 @@ type Genre int
 const (
 	Pops Genre = iota
 	Rock
-	etc //TODO
+	Anime //TODO
 )
 
 func (g Genre) String() string {
@@ -489,8 +489,8 @@ func (g Genre) String() string {
 		return "Pops"
 	case Rock:
 		return "Rock"
-	case etc:
-		return "etc"
+	case Anime:
+		return "Anime"
 	}
 	return "Unknown" // Default for unhandled cases
 }
@@ -501,8 +501,8 @@ func ParseGenre(s string) (Genre, error) {
 		return Pops, nil
 	case "Rock":
 		return Rock, nil
-	case "etc":
-		return etc, nil
+	case "Anime":
+		return Anime, nil
 	}
 	return -1, errors.New("unknown genre: " + s) // Return an invalid Genre value and an error
 }
