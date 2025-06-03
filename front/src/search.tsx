@@ -40,6 +40,7 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                 return;
             }
             try {
+                console.log("query",query)
                 const response = await axios.post("http://localhost:8080/search",
                     {
                         searchCategory: category,
@@ -83,53 +84,53 @@ export const Search = () => {//検索画面と結果表示画面をもつ
         fetchMusic(searchQuery,searchCategory);
     }, [searchQuery, fetchMusic]);
 
-    useEffect(() => {// 最近の検索を取得
-        (async () => {
-            console.log('test')
-            // const history = await axios.get("http://localhosot:8080/history/searches")
-            // setRecentSearch(history.data);
-            // ここではダミーデータを使用
-            const recoData= {data:[
-        {
-            musicID: 5,
-            title: "Favorite Song 5",
-            artist: "Artist E",
-            thumbnail: "https://via.placeholder.com/100x100?text=Favo5",
-        },
-          {
-            musicID: 6,
-            title: "Recommended Song 1",
-            artist: "Artist X",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco1",
-          },
-          {
-            musicID: 7,
-            title: "Recommended Song 2",
-            artist: "Artist Y",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco2",
-          },
-          {
-            musicID: 8,
-            title: "Recommended Song 3",
-            artist: "Artist Z",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco3",
-          },
-          {
-            musicID: 9,
-            title: "Recommended Song 4",
-            artist: "Artist W",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco4",
-          },
-          {
-            musicID: 10,
-            title: "Recommended Song 5",
-            artist: "Artist V",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco5",
-          },
-        ]}
-        setRecentSearch(recoData.data);
-        })();
-      }, [])
+    // useEffect(() => {// 最近の検索を取得
+    //     (async () => {
+    //         console.log('test')
+    //         // const history = await axios.get("http://localhosot:8080/history/searches")
+    //         // setRecentSearch(history.data);
+    //         // ここではダミーデータを使用
+    //         const recoData= {data:[
+    //     {
+    //         musicID: 5,
+    //         title: "Favorite Song 5",
+    //         artist: "Artist E",
+    //         thumbnail: "https://via.placeholder.com/100x100?text=Favo5",
+    //     },
+    //       {
+    //         musicID: 6,
+    //         title: "Recommended Song 1",
+    //         artist: "Artist X",
+    //         thumbnail: "https://via.placeholder.com/100x100?text=Reco1",
+    //       },
+    //       {
+    //         musicID: 7,
+    //         title: "Recommended Song 2",
+    //         artist: "Artist Y",
+    //         thumbnail: "https://via.placeholder.com/100x100?text=Reco2",
+    //       },
+    //       {
+    //         musicID: 8,
+    //         title: "Recommended Song 3",
+    //         artist: "Artist Z",
+    //         thumbnail: "https://via.placeholder.com/100x100?text=Reco3",
+    //       },
+    //       {
+    //         musicID: 9,
+    //         title: "Recommended Song 4",
+    //         artist: "Artist W",
+    //         thumbnail: "https://via.placeholder.com/100x100?text=Reco4",
+    //       },
+    //       {
+    //         musicID: 10,
+    //         title: "Recommended Song 5",
+    //         artist: "Artist V",
+    //         thumbnail: "https://via.placeholder.com/100x100?text=Reco5",
+    //       },
+    //     ]}
+    //     setRecentSearch(recoData.data);
+    //     })();
+    //   }, [])
 
     return (
         <>
