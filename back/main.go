@@ -232,19 +232,19 @@ func search_api(r *gin.Engine, db *sql.DB) {
 		var result []DisplayMusic
 		var rows *sql.Rows
 		var err error
-		baseQuery := "SELECT id, title, artist, thumbnail FROM Music " // Corrected 'artis' to 'artist'
+		baseQuery := "SELECT id, title, artist, thumbnail FROM Music "
 		var args []interface{}
 
-		switch query.SearchCategory {
-		case DiffSearch:
-			baseQuery += "WHERE base_difficulty = ?" // Added space before WHERE
+		switch query.SearchCategory.String() {
+		case DiffSearch.String():
+			baseQuery += "WHERE base_difficulty = ?"
 			args = append(args, query.DiffSearch)
-		case KeywordSearch:
+		case KeywordSearch.String():
 			searchText := "%" + query.TextSearch + "%"
-			baseQuery += "WHERE title LIKE ? OR artist LIKE ?" // Added space before WHERE
+			baseQuery += "WHERE title LIKE ? OR artist LIKE ?"
 			args = append(args, searchText, searchText)
-		case GenreSearch:
-			baseQuery += "WHERE genre = ?" // Added space before WHERE
+		case GenreSearch.String():
+			baseQuery += "WHERE genre = ?"
 			args = append(args, query.GenreSearch.String())
 		default:
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid search category"})
@@ -551,6 +551,30 @@ const (
 	KeywordSearch
 	GenreSearch
 )
+
+func (c SearchCategory) String() string {
+	switch c {
+	case DiffSearch:
+		return "DiffSearch"
+	case KeywordSearch:
+		return "KeywordSearch"
+	case GenreSearch:
+		return "GenreSearch"
+	}
+	return "Unknown" // Default for unhandled cases
+}
+
+func ParseSearchCategory(s string) (SearchCategory, error) {
+	switch s {
+	case "DiffSearch":
+		return DiffSearch, nil
+	case "KeywordSearch":
+		return KeywordSearch, nil
+	case "GenreSearch":
+		return GenreSearch, nil
+	}
+	return -1, errors.New("unknown category: " + s) // Return an invalid Genre value and an error
+}
 
 type SearchQuery struct {
 	DiffSearch     int            `json:"diff_search"`
