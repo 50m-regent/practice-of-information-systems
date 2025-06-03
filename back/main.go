@@ -235,6 +235,10 @@ func search_api(r *gin.Engine, db *sql.DB) {
 		baseQuery := "SELECT id, title, artist, thumbnail FROM Music "
 		var args []interface{}
 
+		fmt.Println(query)
+		fmt.Println(query.SearchCategory)
+		fmt.Println(query.SearchCategory.String())
+
 		switch query.SearchCategory.String() {
 		case DiffSearch.String():
 			baseQuery += "WHERE base_difficulty = ?"
