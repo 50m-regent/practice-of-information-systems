@@ -32,7 +32,10 @@ def calculate_proficiency(
 
         extracted_notes = extracted_notes[i + 1 :]
 
-    accuracy = correct_count / len(correct_pitches)
+    try:
+        accuracy = correct_count / len(correct_pitches)
+    except Exception:
+        return current_proficiency
 
     base_difference = (difficulty - current_proficiency) * 0.5
 
