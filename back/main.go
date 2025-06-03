@@ -49,7 +49,7 @@ func main() {
 		},
 	}))
 
-	//hello(r)
+	hello(r)
 
 	search_api(r, db)
 
@@ -236,24 +236,26 @@ func search_api(r *gin.Engine, db *sql.DB) {
 		var args []interface{}
 
 		fmt.Println(query)
-		fmt.Println(query.SearchCategory)
-		fmt.Println(query.SearchCategory.String())
 
-		switch query.SearchCategory.String() {
-		case DiffSearch.String():
-			baseQuery += "WHERE base_difficulty = ?"
-			args = append(args, query.DiffSearch)
-		case KeywordSearch.String():
-			searchText := "%" + query.TextSearch + "%"
-			baseQuery += "WHERE title LIKE ? OR artist LIKE ?"
-			args = append(args, searchText, searchText)
-		case GenreSearch.String():
-			baseQuery += "WHERE genre = ?"
-			args = append(args, query.GenreSearch.String())
-		default:
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid search category"})
-			return
-		}
+		/*
+			switch query.SearchCategory {
+			case DiffSearch.String():
+				baseQuery += "WHERE base_difficulty = ?"
+				args = append(args, query.DiffSearch)
+			case KeywordSearch.String():
+		*/
+		searchText := "%" + query.TextSearch + "%"
+		baseQuery += "WHERE title LIKE ? OR artist LIKE ?"
+		args = append(args, searchText, searchText)
+		/*
+			case GenreSearch.String():
+				baseQuery += "WHERE genre = ?"
+				args = append(args, query.GenreSearch)
+			default:
+				ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid search category"})
+				return
+			}
+		*/
 
 		log.Printf("Executing search query: %s with args: %v", baseQuery, args) // For debugging
 
@@ -568,6 +570,32 @@ func (c SearchCategory) String() string {
 	return "KeywordSearch" // Default for unhandled cases
 }
 
+// UnmarshalJSON は SearchCategory 型のカスタムデシリアライザです。
+// 文字列 ("DiffSearch", "KeywordSearch", "GenreSearch") または対応する整数 (0, 1, 2) を受け付けます。
+func (sc *SearchCategory) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err == nil {
+		// 文字列としてパース試行
+		parsed, err := ParseSearchCategory(s)
+		if err != nil {
+			return err
+		}
+		*sc = parsed
+		return nil
+	}
+
+	// 文字列でなければ整数としてパース試行
+	var i int
+	if err := json.Unmarshal(b, &i); err == nil {
+		if i >= int(DiffSearch) && i <= int(GenreSearch) { // 有効な範囲かチェック
+			*sc = SearchCategory(i)
+			return nil
+		}
+		return fmt.Errorf("integer value for SearchCategory out of range: %d", i)
+	}
+	return errors.New("SearchCategory should be a string (e.g., \"KeywordSearch\") or a valid integer (0, 1, or 2)")
+}
+
 func ParseSearchCategory(s string) (SearchCategory, error) {
 	switch s {
 	case "DiffSearch":
@@ -581,10 +609,7 @@ func ParseSearchCategory(s string) (SearchCategory, error) {
 }
 
 type SearchQuery struct {
-	DiffSearch     int            `json:"diff_search"`
-	TextSearch     string         `json:"text_search"`
-	GenreSearch    Genre          `json:"genre_search"`
-	SearchCategory SearchCategory `json:"search_category"`
+	TextSearch string `json:"text_search"`
 }
 
 type SelectRequest struct {
