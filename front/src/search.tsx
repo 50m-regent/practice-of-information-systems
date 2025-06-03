@@ -25,7 +25,7 @@ const GENRE_LINE_COLORS = [
 export const Search = () => {//検索画面と結果表示画面をもつ
     const title: string = "検索画面";
     const [searchQuery, setSearchQuery] = useState<SearchQuery>("");
-    const [searchCategory, setSearchCategory] = useState<SearchCategory>("");
+    const [searchCategory, setSearchCategory] = useState<SearchCategory>(SearchCategory.Title);
     const [musicList, setMusicList] = useState<DysplayMusic[]>([]);
     const [genreList, setGenreList] = useState<Genre[]>([]);
     const [recentSearch, setRecentSearch] = useState<DysplayMusic[]>([]);
