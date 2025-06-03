@@ -40,16 +40,16 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                 return;
             }
             try {
-                // const response = await axios.get(`http://localhost:8080/search?searchCategory=${category}&searchQuery=${query}`);
-                // setMusicList(response.data);
+                const response = await axios.get(`http://localhost:8080/search?searchCategory=${category}&searchQuery=${query}`);
+                setMusicList(response.data);
                 // ここではダミーデータを使用
                 // 変更するたびに要素が追加されるダミー
-                const test = "test"+category+":"+query;
-                setMusicList(prevList => {
-                    const updated = [{ musicID: prevList.length, title: test, artist: test, thumbnail: test }, ...prevList];
-                    console.log("検索結果:", updated);
-                    return updated;
-                });
+                // const test = "test"+category+":"+query;
+                // setMusicList(prevList => {
+                //     const updated = [{ musicID: prevList.length, title: test, artist: test, thumbnail: test }, ...prevList];
+                //     console.log("検索結果:", updated);
+                //     return updated;
+                // });
             } catch (error) {
                 console.error("検索に失敗:", error);
             }
@@ -76,48 +76,48 @@ export const Search = () => {//検索画面と結果表示画面をもつ
     useEffect(() => {// 最近の検索を取得
         (async () => {
             console.log('test')
-            // const history = await axios.get("http://localhosot:8080/history/searches")
-            // setRecentSearch(history.data);
+            const history = await axios.get("http://localhosot:8080/history/searches")
+            setRecentSearch(history.data);
             // ここではダミーデータを使用
-            const recoData= {data:[
-        {
-            musicID: 5,
-            title: "Favorite Song 5",
-            artist: "Artist E",
-            thumbnail: "https://via.placeholder.com/100x100?text=Favo5",
-        },
-          {
-            musicID: 6,
-            title: "Recommended Song 1",
-            artist: "Artist X",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco1",
-          },
-          {
-            musicID: 7,
-            title: "Recommended Song 2",
-            artist: "Artist Y",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco2",
-          },
-          {
-            musicID: 8,
-            title: "Recommended Song 3",
-            artist: "Artist Z",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco3",
-          },
-          {
-            musicID: 9,
-            title: "Recommended Song 4",
-            artist: "Artist W",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco4",
-          },
-          {
-            musicID: 10,
-            title: "Recommended Song 5",
-            artist: "Artist V",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco5",
-          },
-        ]}
-        setRecentSearch(recoData.data);
+        //     const recoData= {data:[
+        // {
+        //     musicID: 5,
+        //     title: "Favorite Song 5",
+        //     artist: "Artist E",
+        //     thumbnail: "https://via.placeholder.com/100x100?text=Favo5",
+        // },
+        //   {
+        //     musicID: 6,
+        //     title: "Recommended Song 1",
+        //     artist: "Artist X",
+        //     thumbnail: "https://via.placeholder.com/100x100?text=Reco1",
+        //   },
+        //   {
+        //     musicID: 7,
+        //     title: "Recommended Song 2",
+        //     artist: "Artist Y",
+        //     thumbnail: "https://via.placeholder.com/100x100?text=Reco2",
+        //   },
+        //   {
+        //     musicID: 8,
+        //     title: "Recommended Song 3",
+        //     artist: "Artist Z",
+        //     thumbnail: "https://via.placeholder.com/100x100?text=Reco3",
+        //   },
+        //   {
+        //     musicID: 9,
+        //     title: "Recommended Song 4",
+        //     artist: "Artist W",
+        //     thumbnail: "https://via.placeholder.com/100x100?text=Reco4",
+        //   },
+        //   {
+        //     musicID: 10,
+        //     title: "Recommended Song 5",
+        //     artist: "Artist V",
+        //     thumbnail: "https://via.placeholder.com/100x100?text=Reco5",
+        //   },
+        // ]}
+        // setRecentSearch(recoData.data);
         })();
       }, [])
 

@@ -20,35 +20,40 @@ export const Favorite = () => {
       useEffect(() => {
           (
               async () => {
-                const favoData = {data:[
-                // const favoData = await axios.get("http://localhost:8080/favorites");
-              {
-                musicID: 1,
-                title: "Favorite Song 1",
-                artist: "Artist A",
-                thumbnail: "https://via.placeholder.com/100x100?text=Favo1",
-              },
-              {
-                musicID: 2,
-                title: "Favorite Song 2",
-                artist: "Artist B",
-                thumbnail: "https://via.placeholder.com/100x100?text=Favo2",
-              },
-              {
-                musicID: 3,
-                title: "Favorite Song 3",
-                artist: "Artist C",
-                thumbnail: "https://via.placeholder.com/100x100?text=Favo3",
-              },
-              {
-                musicID: 4,
-                title: "Favorite Song 4",
-                artist: "Artist D",
-                thumbnail: "https://via.placeholder.com/100x100?text=Favo4",
-              },
+                try {
+                const favoData = await axios.get("http://localhost:8080/favorites");
+            //     const favoData = {data:[
+            //   {
+            //     musicID: 1,
+            //     title: "Favorite Song 1",
+            //     artist: "Artist A",
+            //     thumbnail: "https://via.placeholder.com/100x100?text=Favo1",
+            //   },
+            //   {
+            //     musicID: 2,
+            //     title: "Favorite Song 2",
+            //     artist: "Artist B",
+            //     thumbnail: "https://via.placeholder.com/100x100?text=Favo2",
+            //   },
+            //   {
+            //     musicID: 3,
+            //     title: "Favorite Song 3",
+            //     artist: "Artist C",
+            //     thumbnail: "https://via.placeholder.com/100x100?text=Favo3",
+            //   },
+            //   {
+            //     musicID: 4,
+            //     title: "Favorite Song 4",
+            //     artist: "Artist D",
+            //     thumbnail: "https://via.placeholder.com/100x100?text=Favo4",
+            //   },
 
-            ]}
-            setFavoriteMusic(favoData.data);
+            // ]}
+            setFavoriteMusic(favoData.data || []);
+                } catch (error) {
+                    console.error("Error fetching favorites:", error);
+                    setFavoriteMusic([]); // エラー時は空にする
+                }
             }
         )()
         },[])
@@ -71,7 +76,7 @@ export const Favorite = () => {
         {/* メイン */}
         <div className="main">
           <div className="music-grid-container">
-            {
+            {favoriteMusic.length > 0 ? (
                 favoriteMusic.map((music) => (
                     <MusicItemIcon
                     key={music.musicID}
@@ -81,6 +86,9 @@ export const Favorite = () => {
                     thumbnail={music.thumbnail}
                     />
                 ))
+            ) : (
+                <p style={{ paddingLeft: '10px', color: 'gray' }}>お気に入りの楽曲がありません。</p>
+            )
             }
           </div>
         </div>
