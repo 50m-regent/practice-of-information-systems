@@ -561,7 +561,7 @@ func (c SearchCategory) String() string {
 	case GenreSearch:
 		return "GenreSearch"
 	}
-	return "Unknown" // Default for unhandled cases
+	return "KeywordSearch" // Default for unhandled cases
 }
 
 func ParseSearchCategory(s string) (SearchCategory, error) {
