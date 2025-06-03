@@ -120,7 +120,7 @@ export const Practice = () => {
     // const title: string = "楽譜表示画面"; 
     const ZOOM_RATE = 0.8;
     const MAX_DIFFICULTY: Difficulty = 5;
-    const ACCOMPANIMENT_NUM = "0";
+    const ACCOMPANIMENT_NUM = "-1";
     const AUTO_XML_NUM = 0;
 
     const location = useLocation();
@@ -240,24 +240,29 @@ export const Practice = () => {
                 //======================
                 console.log("musicData")
                 console.log(musicData)
+                setArtistData(musicData["artist"])
+                setTitleData(musicData["title"])
                 handleProficiencyUpdate(currentUserProficiency); // 習熟度更新関数を呼ぶ
                 console.log(`[Practice] musicID: ${musicId} の楽譜を取得中`); // `[Practice] Fetching scores for musicID: ${id}`
                 const newXmls: string[]= [];
-                console.log(`[Practice] 習熟度 ${currentUserProficiency} のため ${musicData["sheets"][getAutoDifficulty(currentUserProficiency)]["sheet"]}.musicxmlを取得中`); // `[Practice] Fetching yoaketohotaru.musicxml for proficiency ${currentUserProficiency}`
+                // console.log(`[Practice] 習熟度 ${currentUserProficiency} のため ${musicData["sheets"][getAutoDifficulty(currentUserProficiency)]["sheet"]}.musicxmlを取得中`); // `[Practice] Fetching yoaketohotaru.musicxml for proficiency ${currentUserProficiency}`
                 // let response = await fetch(`/xml/uchudekiritan${getAutoDifficulty(currentUserProficiency)}.musicxml`);
                 // if (!response.ok) throw new Error(`uchudekiritan${getAutoDifficulty(currentUserProficiency)}.musicxml の取得に失敗しました`); // `Failed to fetch yoaketohotaru.musicxml` (ファイル名修正)
                 // const autoxml = await response.text(); // 0番目に習熟度に合わせた楽譜
                 // console.log(musicData)
                 // console.log(musicData["sheets"][String(i)]["sheet"])
-                const autoxml = musicData["sheets"][getAutoDifficulty(currentUserProficiency)]["sheet"]
+                const autoxml = musicData["sheets"].find(item => item.difficulty === getAutoDifficulty(currentUserProficiency))["sheet"];
+                // console.log("autoxml")
+                // console.log(autoxml)
+                // const autoxml = musicData["sheets"][getAutoDifficulty(currentUserProficiency)]["sheet"]
                 newXmls.push(autoxml); // 0番目に習熟度に合わせた楽譜
                 initialize_measuredifficulty(autoxml, getAutoDifficulty(currentUserProficiency)); // 初期化関数を呼び出し
                 for (let i = 1; i <= MAX_DIFFICULTY; i++) {
-                    const xml = musicData["sheets"][String(i)]["sheet"]
+                    const xml = musicData["sheets"].find(item => item.difficulty === i)["sheet"];
                     newXmls.push(xml); // 1番目以降に固定難易度の楽譜
                 }
                 // response = await fetch(`/xml/yoaketohotaru.musicxml`); // 伴奏用XMLは未使用の可能性あり
-                const acxml = musicData["sheets"][String(ACCOMPANIMENT_NUM)]["sheet"]
+                const acxml = musicData["sheets"].find(item => item.difficulty === Number(ACCOMPANIMENT_NUM))["sheet"];
                 accompanimentXmlRef.current = acxml
                 setXml(newXmls);
                 // console.log(`[Practice] 伴奏用XMLの取得 ${accompanimentXmlRef.current}`); // `[Practice] Accompaniment XML fetch ${accompanimentXmlRef.current ? 'succeeded' : 'failed'}`
