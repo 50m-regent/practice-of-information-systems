@@ -93,11 +93,11 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                     }
                 );
                 console.log("response",response)
-                if (response.data === null) {
-                    setMusicList([]);
-                    return;
-                }
-                setMusicList(response.data);
+                // if (response.data === null) {
+                //     setMusicList([]);
+                //     return;
+                // }
+                setMusicList(response.data || []);
             } catch (error) {
                 console.error("検索に失敗:", error);
                 setMusicList([]); // Clear list on error
@@ -196,8 +196,8 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                         {musicList.map((music, index) => (
                             // 音楽表示用コンポーネントの作成
                             <MusicItemIcon
-                                key={music.musicID}
-                                musicID={music.musicID}
+                                key={music.music_id}
+                                musicID={music.music_id}
                                 title={music.title}
                                 artist={music.artist}
                                 thumbnail={music.thumbnail}
@@ -216,8 +216,8 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                             <div className="horizontal-scroll-container">
                                 {recentSearch.map((music) => (
                                     <MusicItemIcon
-                                        key={music.musicID}
-                                        musicID={music.musicID}
+                                        key={music.music_id}
+                                        musicID={music.music_id}
                                         title={music.title}
                                         artist={music.artist}
                                         thumbnail={music.thumbnail}
