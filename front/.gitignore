@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+/public/xml/
+/src/components/OSMDPlayer2.tsx
+/src/practice2.tsx
+src/App3.tsx
