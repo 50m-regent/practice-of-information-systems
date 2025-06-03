@@ -40,7 +40,17 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                 return;
             }
             try {
-                const response = await axios.get(`http://localhost:8080/search?searchCategory=${category}&searchQuery=${query}`);
+                const response = await axios.post("http://localhost:8080/search",
+                    {
+                        searchCategory: category,
+                        searchQuery: query
+                    }
+                );
+                console.log(response)
+                if (response.data === null) {
+                    setMusicList([]);
+                    return;
+                }
                 setMusicList(response.data);
                 // ここではダミーデータを使用
                 // 変更するたびに要素が追加されるダミー
