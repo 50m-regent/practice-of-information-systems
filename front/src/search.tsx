@@ -40,16 +40,16 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                 return;
             }
             try {
-                // const response = await axios.get(`http://localhost:8080/search?searchCategory=${category}&searchQuery=${query}`);
-                // setMusicList(response.data);
+                const response = await axios.get(`http://localhost:8080/search?searchCategory=${category}&searchQuery=${query}`);
+                setMusicList(response.data);
                 // ここではダミーデータを使用
                 // 変更するたびに要素が追加されるダミー
-                const test = "test"+category+":"+query;
-                setMusicList(prevList => {
-                    const updated = [{ musicID: prevList.length, title: test, artist: test, thumbnail: test }, ...prevList];
-                    console.log("検索結果:", updated);
-                    return updated;
-                });
+                // const test = "test"+category+":"+query;
+                // setMusicList(prevList => {
+                //     const updated = [{ musicID: prevList.length, title: test, artist: test, thumbnail: test }, ...prevList];
+                //     console.log("検索結果:", updated);
+                //     return updated;
+                // });
             } catch (error) {
                 console.error("検索に失敗:", error);
             }

@@ -20,35 +20,35 @@ export const Favorite = () => {
       useEffect(() => {
           (
               async () => {
-                const favoData = {data:[
-                // const favoData = await axios.get("http://localhost:8080/favorites");
-              {
-                musicID: 1,
-                title: "Favorite Song 1",
-                artist: "Artist A",
-                thumbnail: "https://via.placeholder.com/100x100?text=Favo1",
-              },
-              {
-                musicID: 2,
-                title: "Favorite Song 2",
-                artist: "Artist B",
-                thumbnail: "https://via.placeholder.com/100x100?text=Favo2",
-              },
-              {
-                musicID: 3,
-                title: "Favorite Song 3",
-                artist: "Artist C",
-                thumbnail: "https://via.placeholder.com/100x100?text=Favo3",
-              },
-              {
-                musicID: 4,
-                title: "Favorite Song 4",
-                artist: "Artist D",
-                thumbnail: "https://via.placeholder.com/100x100?text=Favo4",
-              },
+                const favoData = await axios.get("http://localhost:8080/favorites");
+            //     const favoData = {data:[
+            //   {
+            //     musicID: 1,
+            //     title: "Favorite Song 1",
+            //     artist: "Artist A",
+            //     thumbnail: "https://via.placeholder.com/100x100?text=Favo1",
+            //   },
+            //   {
+            //     musicID: 2,
+            //     title: "Favorite Song 2",
+            //     artist: "Artist B",
+            //     thumbnail: "https://via.placeholder.com/100x100?text=Favo2",
+            //   },
+            //   {
+            //     musicID: 3,
+            //     title: "Favorite Song 3",
+            //     artist: "Artist C",
+            //     thumbnail: "https://via.placeholder.com/100x100?text=Favo3",
+            //   },
+            //   {
+            //     musicID: 4,
+            //     title: "Favorite Song 4",
+            //     artist: "Artist D",
+            //     thumbnail: "https://via.placeholder.com/100x100?text=Favo4",
+            //   },
 
-            ]}
-            setFavoriteMusic(favoData.data);
+            // ]}
+            setFavoriteMusic(favoData.data || []);
             }
         )()
         },[])
