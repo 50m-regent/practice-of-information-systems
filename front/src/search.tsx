@@ -40,6 +40,7 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                 return;
             }
             try {
+                console.log("category",category)
                 console.log("query",query)
                 const response = await axios.post("http://localhost:8080/search",
                     {
