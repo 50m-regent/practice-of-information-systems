@@ -36,7 +36,7 @@ export type AudioClip = {
 }
 
 export type DysplayMusic ={
-    musicID : MusicID;
+    music_id : MusicID;
     title : string;
     artist : string;
     thumbnail : string;//Base64形式の画像データ

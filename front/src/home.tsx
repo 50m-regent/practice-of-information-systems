@@ -7,12 +7,8 @@ import { generateRandomString } from "./utils/stringUtils"; // 既存のユー�
 import "./css/Home.css";
 import { useAuth } from './contexts/AuthContext';
 
-type DysplayMusic ={
-  musicID : number;
-  title : string;
-  artist : string;
-  thumbnail : string;//画像のURL? 画像そのもの？
-}
+import { DysplayMusic } from "./types/types";
+
  const MAX_MUSIC_NUM = 5; //表示する音楽の最大数
 
 const CLIENT_ID = "826a4a6ab717454aa24268036207a028";
@@ -260,8 +256,8 @@ export const Home = () => {
           {
             quickAccess.map((music) => (
               <MusicItemIcon
-                key={music.musicID}
-                musicID={music.musicID}
+                key={music.music_id}
+                musicID={music.music_id}
                 title={music.title}
                 artist={music.artist}
                 thumbnail={music.thumbnail}
@@ -277,8 +273,8 @@ export const Home = () => {
           {
             favoriteMusic.map((music) => (
               <MusicItemIcon
-                key={music.musicID}
-                musicID={music.musicID}
+                key={music.music_id}
+                musicID={music.music_id}
                 title={music.title}
                 artist={music.artist}
                 thumbnail={music.thumbnail}
@@ -294,8 +290,8 @@ export const Home = () => {
           {
             recommendMusic.map((music) => (
               <MusicItemIcon
-                key={music.musicID}
-                musicID={music.musicID}
+                key={music.music_id}
+                musicID={music.music_id}
                 title={music.title}
                 artist={music.artist}
                 thumbnail={music.thumbnail}

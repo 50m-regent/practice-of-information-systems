@@ -6,13 +6,7 @@ import { MusicItemIcon } from "./components/musicItemIcon";
 import  "./css/recommend.css"
 import { IoIosArrowBack } from 'react-icons/io';
 import { useAuth } from './contexts/AuthContext';
-
-type DysplayMusic ={
-  musicID : number;
-  title : string;
-  artist : string;
-  thumbnail : string;//画像のURL? 画像そのもの？
-}
+import { DysplayMusic } from "./types/types";
 
 export const Recommend = () => {
     const title: string = "推薦画面";
@@ -114,8 +108,8 @@ export const Recommend = () => {
                 recommendMusic.length > 0 ? (
                   recommendMusic.map((music) => (
                     <MusicItemIcon
-                      key={music.musicID}
-                      musicID={music.musicID}
+                      key={music.music_id}
+                      musicID={music.music_id}
                       title={music.title}
                       artist={music.artist}
                       thumbnail={music.thumbnail}

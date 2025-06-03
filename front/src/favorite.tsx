@@ -5,13 +5,7 @@ import axios from "axios";
 import { MusicItemIcon } from "./components/musicItemIcon";
 import "./css/favorite.css";
 import { IoIosArrowBack } from 'react-icons/io';
-
-type DysplayMusic ={
-  musicID : number;
-  title : string;
-  artist : string;
-  thumbnail : string;//画像のURL? 画像そのもの？
-}
+import { DysplayMusic } from "./types/types";
 
 export const Favorite = () => {
     const title: string = "ホーム画面";
@@ -74,8 +68,8 @@ export const Favorite = () => {
             {
                 favoriteMusic.map((music) => (
                     <MusicItemIcon
-                    key={music.musicID}
-                    musicID={music.musicID}
+                    key={music.music_id}
+                    musicID={music.music_id}
                     title={music.title}
                     artist={music.artist}
                     thumbnail={music.thumbnail}
