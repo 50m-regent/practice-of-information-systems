@@ -18,6 +18,8 @@ def calculate_proficiency(
 
     correct_count = 0
     for correct_pitch in correct_pitches:
+        if len(extracted_notes) == 0:
+            break
         for i in range(len(extracted_notes)):
             # 正解周波数から前後音階の周波数の範囲内に入ってたらいいことにする
             if not correct_pitch[0] / 1.059463094 < extracted_notes[i].freq < correct_pitch[0] * 1.059463094:
