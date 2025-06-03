@@ -42,10 +42,10 @@ export type DysplayMusic ={
     thumbnail : string;//Base64形式の画像データ
 }
 export enum SearchCategory {
-    Difficulty = "difficulty",
-    Title = "title",
+    Difficulty = "DiffSearch",
+    Title = "KeywordSearch",
     Artist = "artist",
-    Genre = "genre",
+    Genre = "GenreSearch",
 }
 
 export type SearchQuery = Difficulty | string | Genre;

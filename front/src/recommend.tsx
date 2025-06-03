@@ -24,17 +24,28 @@ export const Recommend = () => {
         if (isSpotifyAuthenticated() && spotifyAccessToken) {
           try {
             console.log("Recommend.tsx: Fetching recommendations with Spotify token:", spotifyAccessToken);
-            // const recoData = await axios.get(`http://localhost:8080/recommendations/spotify?accesstoken=${spotifyAccessToken}`);
-            // setRecommendMusic(recoData.data);
+              const recoData = await axios.post("http://localhost:8080/recommendations/spotify",
+              {
+                access_token: spotifyAccessToken,
+                limit: 10,
+                count: 10
+              },
+              {
+                headers: {
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+            setRecommendMusic(recoData.data);
 
             // APIが準備できるまではダミーデータを使用
-            const dummySpotifyRecoData = {
-              data: [
-                { musicID: 60, title: "Spotify Reco 1 (from context)", artist: "Artist S1", thumbnail: "https://via.placeholder.com/100x100?text=SReco1" },
-                { musicID: 70, title: "Spotify Reco 2 (from context)", artist: "Artist S2", thumbnail: "https://via.placeholder.com/100x100?text=SReco2" },
-              ]
-            };
-            setRecommendMusic(dummySpotifyRecoData.data);
+            // const dummySpotifyRecoData = {
+            //   data: [
+            //     { musicID: 60, title: "Spotify Reco 1 (from context)", artist: "Artist S1", thumbnail: "https://via.placeholder.com/100x100?text=SReco1" },
+            //     { musicID: 70, title: "Spotify Reco 2 (from context)", artist: "Artist S2", thumbnail: "https://via.placeholder.com/100x100?text=SReco2" },
+            //   ]
+            // };
+            // setRecommendMusic(dummySpotifyRecoData.data);
 
           } catch (error) {
             console.error("Error fetching recommendations from Spotify:", error);
@@ -49,18 +60,30 @@ export const Recommend = () => {
 
       const fetchProficiencyRecommendations = async () => {
         try {
-          // const recoData = await axios.get("http://localhost:8080/recommendations/proficiency");
-          // const recoData = await axios.get("http://localhost:8080/recommendations/spotify?accesstoken=${spotifyAccessToken}"); //Spotifyからおすすめ取るのはこっち
+          const recoData = await axios.get("http://localhost:8080/recommendations/proficiency");
+        //   const recoData = await axios.post("http://localhost:8080/recommendations/spotify",
+        //   {
+        //     access_token: spotifyAccessToken,
+        //     limit: 10,
+        //     count: 10
+        //   },
+        //   {
+        //     headers: {
+        //       'Content-Type': 'application/json'
+        //     }
+        //   }
+        // ); //Spotifyからおすすめ取るのはこっち //Spotifyからおすすめ取るのはこっち
           // setRecommendMusic(recoData.data);
           // ダミーデータを使用
-          const proficiencyRecoData = {
-            data: [
-              { musicID: 5, title: "Proficiency Reco 1", artist: "Artist P1", thumbnail: "https://via.placeholder.com/100x100?text=PReco1" },
-              { musicID: 8, title: "Proficiency Reco 2", artist: "Artist P2", thumbnail: "https://via.placeholder.com/100x100?text=PReco2" },
-              { musicID: 9, title: "Proficiency Reco 3", artist: "Artist P3", thumbnail: "https://via.placeholder.com/100x100?text=PReco3" },
-            ]
-          };
-          setRecommendMusic(proficiencyRecoData.data);
+          // const proficiencyRecoData = {
+          //   data: [
+          //     { musicID: 5, title: "Proficiency Reco 1", artist: "Artist P1", thumbnail: "https://via.placeholder.com/100x100?text=PReco1" },
+          //     { musicID: 8, title: "Proficiency Reco 2", artist: "Artist P2", thumbnail: "https://via.placeholder.com/100x100?text=PReco2" },
+          //     { musicID: 9, title: "Proficiency Reco 3", artist: "Artist P3", thumbnail: "https://via.placeholder.com/100x100?text=PReco3" },
+          //   ]
+          // };
+          // setRecommendMusic(proficiencyRecoData.data);
+          setRecommendMusic(recoData.data || []);
         } catch (error) {
           console.error("Error fetching proficiency recommendations:", error);
           setRecommendMusic([]); // エラー時は空にする

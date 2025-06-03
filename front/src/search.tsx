@@ -22,10 +22,21 @@ const GENRE_LINE_COLORS = [
 
 ];
 
+// Define the structure for the searchQuery object in the POST request payload
+interface BackendSearchQueryPayload {
+    diff_search: number;
+    text_search: string;
+    genre_search: string;
+}
+
 export const Search = () => {//検索画面と結果表示画面をもつ
     const title: string = "検索画面";
-    const [searchQuery, setSearchQuery] = useState<SearchQuery>("");
-    const [searchCategory, setSearchCategory] = useState<SearchCategory>("");
+    // searchQueryとsearchCategoryを一つのオブジェクトで管理
+    interface SearchParameters {
+      queryValue: SearchQuery; // 実際の検索クエリ (テキスト、難易度レベル、ジャンル名)
+      category: SearchCategory;    // 検索カテゴリ
+    }
+    const [searchParams, setSearchParams] = useState<SearchParameters | null>(null);
     const [musicList, setMusicList] = useState<DysplayMusic[]>([]);
     const [genreList, setGenreList] = useState<Genre[]>([]);
     const [recentSearch, setRecentSearch] = useState<DysplayMusic[]>([]);
@@ -33,25 +44,63 @@ export const Search = () => {//検索画面と結果表示画面をもつ
     const fetchMusic = useCallback(//検索クエリを元に音楽リストを取得する関数
         // debounceを使用して、入力が止まってから500ms後に実行
         // useCallbackを使用して、関数をメモ化?
-        debounce(async (query: SearchQuery, category: SearchCategory) => {
+        debounce(async (params: SearchParameters | null) => {
             // console.log(musicList);
-            if (!query) {
+            if (!params || params.queryValue === "" || params.queryValue === null || params.queryValue === undefined) {
                 setMusicList([]);
                 return;
             }
             try {
-                // const response = await axios.get(`http://localhost:8080/search?searchCategory=${category}&searchQuery=${query}`);
-                // setMusicList(response.data);
-                // ここではダミーデータを使用
-                // 変更するたびに要素が追加されるダミー
-                const test = "test"+category+":"+query;
-                setMusicList(prevList => {
-                    const updated = [{ musicID: prevList.length, title: test, artist: test, thumbnail: test }, ...prevList];
-                    console.log("検索結果:", updated);
-                    return updated;
-                });
+                console.log("category", params.category);
+                console.log("queryValue from params", params.queryValue);
+
+                // Construct the new searchQuery payload
+                const backendSearchQuery: BackendSearchQueryPayload = {
+                    diff_search: 1,
+                    text_search: "",
+                    genre_search: "Pops"
+                };
+
+                switch (params.category) {
+                    case SearchCategory.Title:
+                        backendSearchQuery.text_search = String(params.queryValue);
+                        break;
+                    case SearchCategory.Difficulty:
+                        backendSearchQuery.diff_search = 1; // Convert number to string
+                        break;
+                    case SearchCategory.Genre:
+                        backendSearchQuery.genre_search = String(params.queryValue); // Genre is likely already a string
+                        break;
+                    default:
+                        console.warn("Unknown search category:", params.category);
+                        setMusicList([]);
+                        return;
+                }
+
+                console.log("query", {
+                        ...backendSearchQuery, // Spread the query fields
+                        search_category: params.category // Add searchCategory at the top level
+                    });
+                // const response = await axios.post("http://localhost:8080/search",
+                //     {
+                //         ...backendSearchQuery, // Spread the query fields
+                //         search_category: params.category // Add searchCategory at the top level
+                //     }
+                // );
+                const response = await axios.post("http://localhost:8080/search",
+                    {
+                        text_search: backendSearchQuery.text_search // Spread the query fields
+                    }
+                );
+                console.log("response",response)
+                if (response.data === null) {
+                    setMusicList([]);
+                    return;
+                }
+                setMusicList(response.data);
             } catch (error) {
                 console.error("検索に失敗:", error);
+                setMusicList([]); // Clear list on error
             }
         }, 500),
         [] // debounceは一度だけ定義
@@ -70,56 +119,56 @@ export const Search = () => {//検索画面と結果表示画面をもつ
     },[]);
 
     useEffect(() => {// 検索クエリが変更されたときにfetchMusicを呼び出す, debounceのため第２引数にfetchmusicも入れてるらしい
-        fetchMusic(searchQuery,searchCategory);
-    }, [searchQuery, fetchMusic]);
+        fetchMusic(searchParams);
+    }, [searchParams, fetchMusic]);
 
-    useEffect(() => {// 最近の検索を取得
-        (async () => {
-            console.log('test')
-            // const history = await axios.get("http://localhosot:8080/history/searches")
-            // setRecentSearch(history.data);
-            // ここではダミーデータを使用
-            const recoData= {data:[
-        {
-            musicID: 5,
-            title: "Favorite Song 5",
-            artist: "Artist E",
-            thumbnail: "https://via.placeholder.com/100x100?text=Favo5",
-        },
-          {
-            musicID: 6,
-            title: "Recommended Song 1",
-            artist: "Artist X",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco1",
-          },
-          {
-            musicID: 7,
-            title: "Recommended Song 2",
-            artist: "Artist Y",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco2",
-          },
-          {
-            musicID: 8,
-            title: "Recommended Song 3",
-            artist: "Artist Z",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco3",
-          },
-          {
-            musicID: 9,
-            title: "Recommended Song 4",
-            artist: "Artist W",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco4",
-          },
-          {
-            musicID: 10,
-            title: "Recommended Song 5",
-            artist: "Artist V",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco5",
-          },
-        ]}
-        setRecentSearch(recoData.data);
-        })();
-      }, [])
+    // useEffect(() => {// 最近の検索を取得
+    //     (async () => {
+    //         console.log('test')
+    //         // const history = await axios.get("http://localhosot:8080/history/searches")
+    //         // setRecentSearch(history.data);
+    //         // ここではダミーデータを使用
+    //         const recoData= {data:[
+    //     {
+    //         musicID: 5,
+    //         title: "Favorite Song 5",
+    //         artist: "Artist E",
+    //         thumbnail: "https://via.placeholder.com/100x100?text=Favo5",
+    //     },
+    //       {
+    //         musicID: 6,
+    //         title: "Recommended Song 1",
+    //         artist: "Artist X",
+    //         thumbnail: "https://via.placeholder.com/100x100?text=Reco1",
+    //       },
+    //       {
+    //         musicID: 7,
+    //         title: "Recommended Song 2",
+    //         artist: "Artist Y",
+    //         thumbnail: "https://via.placeholder.com/100x100?text=Reco2",
+    //       },
+    //       {
+    //         musicID: 8,
+    //         title: "Recommended Song 3",
+    //         artist: "Artist Z",
+    //         thumbnail: "https://via.placeholder.com/100x100?text=Reco3",
+    //       },
+    //       {
+    //         musicID: 9,
+    //         title: "Recommended Song 4",
+    //         artist: "Artist W",
+    //         thumbnail: "https://via.placeholder.com/100x100?text=Reco4",
+    //       },
+    //       {
+    //         musicID: 10,
+    //         title: "Recommended Song 5",
+    //         artist: "Artist V",
+    //         thumbnail: "https://via.placeholder.com/100x100?text=Reco5",
+    //       },
+    //     ]}
+    //     setRecentSearch(recoData.data);
+    //     })();
+    //   }, [])
 
     return (
         <>
@@ -127,13 +176,13 @@ export const Search = () => {//検索画面と結果表示画面をもつ
             <div className="header">
             <input type="search"
                 placeholder="曲名・アーティスト名で検索"
-                // value={searchQuery}
+                // value={searchParams?.category === SearchCategory.Title ? String(searchParams.queryValue) : ""} // 必要に応じて表示制御
                 onChange={(event) => {
-                    if (event.target.value === "") {
-                        setSearchQuery("");
+                    const value = event.target.value;
+                    if (value === "") {
+                        setSearchParams(null); // クエリが空ならリセット
                     }else{
-                        setSearchCategory(SearchCategory.Title);
-                        setSearchQuery(event.target.value);
+                        setSearchParams({ queryValue: value, category: SearchCategory.Title });
                     }
                 }} //アーティスト・楽曲名検索クエリ
                 />
@@ -141,7 +190,7 @@ export const Search = () => {//検索画面と結果表示画面をもつ
 
             <div className="main">
             {
-                (musicList.length > 0) ? (//検索クエリが存在している場合の画面
+                (searchParams && searchParams.queryValue !== "" && searchParams.queryValue !== null && searchParams.queryValue !== undefined) ? (// 何らかの検索が実行された場合
                     <div className="search_result">
                         <div className="music-grid-container">
                         {musicList.map((music, index) => (
@@ -155,8 +204,11 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                             />
                         ))}
                         </div>
+                        {musicList.length === 0 && (
+                            <p style={{ paddingLeft: '10px', color: 'gray' }}>検索結果はありません。</p>
+                        )}
                     </div>
-                 ) : (//検索クエリが存在しない場合の画面
+                 ) : (// 初期表示または検索クエリがクリアされた場合
                     <>
                     <div className="recentSearch">
                         <b style={{paddingLeft: '10px'}}>最近の検索</b>
@@ -183,7 +235,7 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                                 const level = i + 1;
                                 return (
                                     <div key={level}>
-                                        <button key={level} onClick={() => {setSearchCategory(SearchCategory.Difficulty); setSearchQuery(level)}}>
+                                        <button key={level} onClick={() => setSearchParams({ queryValue: level, category: SearchCategory.Difficulty })}>
                                             {level}
                                         </button>
                                     </div>
@@ -198,7 +250,7 @@ export const Search = () => {//検索画面と結果表示画面をもつ
                                 const lineColor = GENRE_LINE_COLORS[index % GENRE_LINE_COLORS.length];
                                 return (
                                     <div key={index}>
-                                    <button key={index} style={{'--line-color': lineColor }} onClick={() => {setSearchCategory(SearchCategory.Genre); setSearchQuery(genre)}}>
+                                    <button key={index} style={{'--line-color': lineColor }} onClick={() => setSearchParams({ queryValue: genre, category: SearchCategory.Genre })}>
                                         {genre}
                                     </button>
                                     </div>

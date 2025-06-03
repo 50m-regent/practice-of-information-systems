@@ -190,80 +190,26 @@ export const Home = () => {
 
     (
       async () => {
-        // ダミーデータや既存のデータ取得ロジックはそのまま
-        const favoData = {data:[
-          {
-            musicID: 1,
-            title: "Favorite Song 1",
-            artist: "Artist A",
-            thumbnail: "https://via.placeholder.com/100x100?text=Favo1",
-          },
-          {
-            musicID: 2,
-            title: "Favorite Song 2",
-            artist: "Artist B",
-            thumbnail: "https://via.placeholder.com/100x100?text=Favo2",
-          },
-          {
-            musicID: 3,
-            title: "Favorite Song 3",
-            artist: "Artist C",
-            thumbnail: "https://via.placeholder.com/100x100?text=Favo3",
-          },
-          {
-            musicID: 4,
-            title: "Favorite Song 4",
-            artist: "Artist D",
-            thumbnail: "https://via.placeholder.com/100x100?text=Favo4",
-          },
+        const favoData = await axios.get("http://localhost:8080/favorites");
+        const quickData = await axios.get("http://localhost:8080/recommendations/proficiency"); // 習熟度からおすすめ取るのはこっち
+        // const recoData = await axios.get("http://localhost:8080/recommendations/proficiency");
 
-        ]}
-
-        const recoData= {data:[
+        const recoData = await axios.post("http://localhost:8080/recommendations/spotify",
           {
-            musicID: 5,
-            title: "Favorite Song 5",
-            artist: "Artist E",
-            thumbnail: "https://via.placeholder.com/100x100?text=Favo5",
+            access_token: spotifyAccessToken,
+            limit: 10,
+            count: 10
           },
           {
-            musicID: 6,
-            title: "Recommended Song 1",
-            artist: "Artist X",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco1",
-          },
-          {
-            musicID: 7,
-            title: "Recommended Song 2",
-            artist: "Artist Y",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco2",
-          },
-          {
-            musicID: 8,
-            title: "Recommended Song 3",
-            artist: "Artist Z",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco3",
-          },
-          {
-            musicID: 9,
-            title: "Recommended Song 4",
-            artist: "Artist W",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco4",
-          },
-          {
-            musicID: 10,
-            title: "Recommended Song 5",
-            artist: "Artist V",
-            thumbnail: "https://via.placeholder.com/100x100?text=Reco5",
-          },
-        ]}
-        // const favoData = await axios.get("http://localhost:8080/favorites");
-        // const recoData = await axios.get("http://localhost:8080/recommendations/proficiency"); // 習熟度からおすすめ取るのはこっち
-        // const recoData = await axios.get("http://localhost:8080/recommendations/spotify?accesstoken=${spotifyAccessToken}"); //Spotifyからおすすめ取るのはこっち
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        ); //Spotifyからおすすめ取るのはこっち
         // const quickData = await axios.get("http://localhost:8080/getquickaccess"); //まだ実装されてない？
-        setFavoriteMusic(favoData.data.slice(0,Math.min(MAX_MUSIC_NUM, favoData.data.length)));
-        setRecommendMusic(recoData.data.slice(0,Math.min(MAX_MUSIC_NUM, recoData.data.length)));
-        setQuickAccess(recoData.data.slice(0,Math.min(MAX_MUSIC_NUM, recoData.data.length)));
+        setFavoriteMusic((favoData.data || []).slice(0,Math.min(MAX_MUSIC_NUM, (favoData.data || []).length)));
+        setRecommendMusic((recoData.data || []).slice(0,Math.min(MAX_MUSIC_NUM, (recoData.data || []).length)));
+        setQuickAccess((recoData.data || []).slice(0,Math.min(MAX_MUSIC_NUM, (recoData.data || []).length)));
         }
     )();
 
