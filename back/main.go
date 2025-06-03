@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"math"
 	"net/http"
+	"os/exec"
 	"strconv"
 
 	"github.com/gin-contrib/cors"
@@ -61,6 +64,7 @@ func main() {
 	favorites_api(r, db)
 	history_api(r, db)
 	difficulty_settings_api(r, db)
+	calc_proficiency_api(r, db) // db を渡すように変更
 
 	r.Run(":8080")
 
@@ -455,6 +459,18 @@ func proficiency_recommend_api(r *gin.Engine, db *sql.DB) {
 	})
 }
 
+// CalculateProficiencyRequest defines the structure for the proficiency calculation request.
+type CalculateProficiencyRequest struct {
+	Audio          []float64   `json:"audio" binding:"required"`
+	Difficulty     int         `json:"difficulty"` // 0も有効な値として送信
+	CorrectPitches [][]float64 `json:"correct_pitches" binding:"required"`
+}
+
+// CalculateProficiencyResponse defines the structure for the proficiency calculation response.
+type CalculateProficiencyResponse struct {
+	Proficiency float64 `json:"proficiency"`
+}
+
 type Difficulty int
 
 type Proficiency float64
@@ -663,5 +679,88 @@ func difficulty_settings_api(r *gin.Engine, db *sql.DB) {
 			return
 		}
 		ctx.JSON(http.StatusOK, settings)
+	})
+}
+
+func calc_proficiency_api(r *gin.Engine, db *sql.DB) {
+	r.POST("/calc_proficiency", func(ctx *gin.Context) {
+		const fixedSamplingRate = 48000.0
+
+		// Declare variables
+		var currentProficiency float64
+		var req CalculateProficiencyRequest // Request body structure
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+			return
+		}
+
+		// CorrectPitches の各要素が2つのfloatであることを検証 (オプションだが推奨)
+		for i, pitchPair := range req.CorrectPitches {
+			if len(pitchPair) != 2 {
+				ctx.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid format for 'correct_pitches' at index %d. Each item must be an array of two floats.", i)})
+				return
+			}
+		}
+
+		// 1. Get current proficiency from DB (after validating request body)
+		err := db.QueryRow("SELECT proficiency FROM UserProficiency WHERE singleton_key = 1").Scan(&currentProficiency) // Assign to existing err
+		if err != nil {
+			if err == sql.ErrNoRows {
+				log.Printf("UserProficiency record not found, cannot calculate proficiency.")
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "User proficiency not found, cannot calculate proficiency"})
+				return
+			}
+			log.Printf("Error fetching current proficiency: %v", err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch current proficiency"})
+			return
+		}
+
+		// 2. Prepare data for Python script
+		pythonInputData := map[string]interface{}{
+			"audio":               req.Audio,
+			"difficulty":          req.Difficulty,
+			"correct_pitches":     req.CorrectPitches,
+			"current_proficiency": currentProficiency,
+			"sampling_rate":       fixedSamplingRate,
+		}
+		reqBytes, err := json.Marshal(pythonInputData)
+		if err != nil {
+			log.Printf("Error marshalling request for Python script: %v", err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare data for proficiency calculation"})
+			return
+		}
+
+		// Pythonスクリプトのパスを適切に指定
+		cmd := exec.Command("uv", "run", "python", "calculate_proficiency_runner.py")
+		cmd.Dir = "./../tech" // 'tech' ディレクトリでコマンドを実行
+		cmd.Stdin = bytes.NewReader(reqBytes)
+
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+
+		err = cmd.Run()
+		if err != nil {
+			log.Printf("Error running Python script: %v. Stderr: %s", err, stderr.String())
+			// Python側でエラーがJSON形式でstderrに出力されることを期待
+			var pyErr struct {
+				Error string `json:"error"`
+			}
+			if json.Unmarshal(stderr.Bytes(), &pyErr) == nil && pyErr.Error != "" {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Proficiency calculation script error: " + pyErr.Error})
+			} else {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Proficiency calculation script failed: " + stderr.String()})
+			}
+			return
+		}
+
+		var resp CalculateProficiencyResponse
+		if err := json.Unmarshal(stdout.Bytes(), &resp); err != nil {
+			log.Printf("Error unmarshalling response from Python script: %v. Stdout: %s", err, stdout.String())
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse proficiency calculation result"})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, resp)
 	})
 }
