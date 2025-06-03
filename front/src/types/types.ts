@@ -43,7 +43,7 @@ export type DysplayMusic ={
 }
 export enum SearchCategory {
     Difficulty = "DiffSearch",
-    Title = "TextSearch",
+    Title = "KeywordSearch",
     Artist = "artist",
     Genre = "GenreSearch",
 }
